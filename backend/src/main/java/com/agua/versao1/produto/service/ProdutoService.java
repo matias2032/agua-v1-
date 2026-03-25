@@ -71,22 +71,33 @@ public class ProdutoService {
         return mapper.toResponse(produtoRepository.save(produto));
     }
 
-    @Transactional
-    public ProdutoDTO.Response ativar(Integer id) {
-        Produto produto = produtoRepository.findById(id)
-                .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
-        produto.setAtivo(true);
-        return mapper.toResponse(produtoRepository.save(produto));
-    }
+  @Transactional
+public ProdutoDTO.Response ativar(Integer id) {
+    // Garante que existe
+    produtoRepository.findById(id)
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
 
-    @Transactional
-    public ProdutoDTO.Response desativar(Integer id) {
-        Produto produto = produtoRepository.findById(id)
-                .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
-        produto.setAtivo(false);
-        return mapper.toResponse(produtoRepository.save(produto));
-    }
+    produtoRepository.ativarPorId(id);
 
+    // Limpa o cache de 1º nível para buscar o estado real do banco
+    return mapper.toResponse(
+            produtoRepository.findById(id)
+                    .orElseThrow(() -> new ProdutoNaoEncontradoException(id))
+    );
+}
+
+@Transactional
+public ProdutoDTO.Response desativar(Integer id) {
+    produtoRepository.findById(id)
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
+
+    produtoRepository.desativarPorId(id);
+
+    return mapper.toResponse(
+            produtoRepository.findById(id)
+                    .orElseThrow(() -> new ProdutoNaoEncontradoException(id))
+    );
+}
     // ─── Disponibilidade (vw_disponibilidade_produto) ─────────────────────────
 
     /**

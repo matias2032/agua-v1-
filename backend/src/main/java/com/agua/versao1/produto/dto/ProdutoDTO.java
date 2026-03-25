@@ -59,14 +59,14 @@ public class ProdutoDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class Disponibilidade {
-        private Integer idProduto;
-        private String nomeProduto;
-        private BigDecimal capacidadeLitros;
-        private BigDecimal precoCompra;
-        private BigDecimal precoReenchimento;
-        private BigDecimal litrosDisponiveis;
-        // FLOOR(litros_disponiveis / capacidade_litros) — calculado pelo banco
-        private Integer quantidadeDisponivel;
-    }
+public static class Disponibilidade {
+    private Integer idProduto;
+    private String nomeProduto;
+    private BigDecimal capacidadeLitros;
+    private BigDecimal precoCompra;
+    private BigDecimal precoReenchimento;
+    private BigDecimal litrosDisponiveis;
+    private Integer quantidadeDisponivel;
+    private Boolean ativo;  // ← adicionar
+}
 }

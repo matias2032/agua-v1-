@@ -50,6 +50,7 @@ public class ProdutoMapper {
                 .precoReenchimento(view.getPrecoReenchimento())
                 .litrosDisponiveis(view.getLitrosDisponiveis())
                 .quantidadeDisponivel(view.getQuantidadeDisponivel())
+                .ativo(view.getAtivo())
                 .build();
     }
 

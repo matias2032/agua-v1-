@@ -283,20 +283,19 @@ class _ProdutoCard extends StatelessWidget {
                           context.read<ProdutoProvider>().carregarProdutos());
                     },
                   ),
-                  IconButton(
-                    tooltip: temEstoque ? 'Desativar' : 'Ativar',
-                    icon: Icon(
-                      temEstoque
-                          ? Icons.toggle_on_outlined
-                          : Icons.toggle_off_outlined,
-                      size: 24,
-                      color: temEstoque
-                          ? const Color(0xFF0F6E56)
-                          : const Color(0xFFA32D2D),
-                    ),
-                    onPressed: () =>
-                        onToggle(context, produto, !temEstoque),
-                  ),
+                IconButton(
+  tooltip: produto.ativo ? 'Desativar' : 'Ativar',
+  icon: Icon(
+    produto.ativo
+        ? Icons.toggle_on_outlined
+        : Icons.toggle_off_outlined,
+    size: 24,
+    color: produto.ativo
+        ? const Color(0xFF0F6E56)
+        : const Color(0xFFA32D2D),
+  ),
+  onPressed: () => onToggle(context, produto, !produto.ativo),
+),
                 ],
               ),
             ],

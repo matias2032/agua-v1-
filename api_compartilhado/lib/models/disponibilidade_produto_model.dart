@@ -15,6 +15,7 @@ class DisponibilidadeProdutoModel {
   final Decimal precoReenchimento;
   final Decimal litrosDisponiveis;
   final int quantidadeDisponivel;
+  final bool ativo;
 
   const DisponibilidadeProdutoModel({
     required this.idProduto,
@@ -24,6 +25,7 @@ class DisponibilidadeProdutoModel {
     required this.precoReenchimento,
     required this.litrosDisponiveis,
     required this.quantidadeDisponivel,
+    this.ativo = true,
   });
 
   bool get temEstoque => quantidadeDisponivel > 0;
@@ -37,6 +39,8 @@ class DisponibilidadeProdutoModel {
       precoReenchimento: Decimal.parse(json['precoReenchimento'].toString()),
       litrosDisponiveis: Decimal.parse(json['litrosDisponiveis'].toString()),
       quantidadeDisponivel: json['quantidadeDisponivel'] as int,
+      ativo: json['ativo'] as bool,
+
     );
   }
 
@@ -48,6 +52,7 @@ class DisponibilidadeProdutoModel {
         'precoReenchimento': precoReenchimento.toString(),
         'litrosDisponiveis': litrosDisponiveis.toString(),
         'quantidadeDisponivel': quantidadeDisponivel,
+        'ativo': ativo,
       };
 
   @override

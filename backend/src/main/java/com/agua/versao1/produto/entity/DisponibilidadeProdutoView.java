@@ -24,6 +24,7 @@ import java.math.BigDecimal;
             p.capacidade_litros,
             p.preco_compra,
             p.preco_reenchimento,
+            p.ativo,
             e.litros_disponiveis,
             FLOOR(e.litros_disponiveis / p.capacidade_litros)::INTEGER AS quantidade_disponivel
         FROM produto p
@@ -57,4 +58,7 @@ public class DisponibilidadeProdutoView {
     // Quantidade de galões que podem ser vendidos dado o estoque atual
     @Column(name = "quantidade_disponivel")
     private Integer quantidadeDisponivel;
+
+    @Column(name = "ativo")
+private Boolean ativo;
 }
