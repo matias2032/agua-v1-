@@ -13,6 +13,7 @@ dependencies:
 
   api_compartilhado:
     path: ../../api_compartilhado
+  decimal: ^2.3.3  
 
   shared_preferences: ^2.2.3
     
