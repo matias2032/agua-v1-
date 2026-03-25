@@ -1,0 +1,21 @@
+name: api_compartilhado
+description: Configurações partilhadas entre Web e Android.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.10.4 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  uuid: ^4.4.0  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  http: ^1.2.0       
+  intl: ^0.19.0
+  shared_preferences: ^2.2.3
+  connectivity_plus: ^5.0.0
+  
