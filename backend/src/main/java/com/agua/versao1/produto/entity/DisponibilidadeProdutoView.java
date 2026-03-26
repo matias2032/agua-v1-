@@ -29,9 +29,9 @@ import java.math.BigDecimal;
             FLOOR(e.litros_disponiveis / p.capacidade_litros)::INTEGER AS quantidade_disponivel
         FROM produto p
         CROSS JOIN estoque_agua e
-        WHERE p.ativo = TRUE
-          AND e.id_estoque = (SELECT MAX(id_estoque) FROM estoque_agua)
+              WHERE e.id_estoque = (SELECT MAX(id_estoque) FROM estoque_agua)
         """)
+
 @Getter
 @NoArgsConstructor
 public class DisponibilidadeProdutoView {

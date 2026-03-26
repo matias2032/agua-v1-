@@ -176,15 +176,23 @@ class _ProdutoCard extends StatelessWidget {
   const _ProdutoCard({required this.produto, required this.onToggle});
 
   @override
-  Widget build(BuildContext context) {
-    final temEstoque = produto.temEstoque;
+@override
+Widget build(BuildContext context) {
+  final temEstoque = produto.temEstoque;
 
-    return Card(
+  return Opacity(
+    opacity: produto.ativo ? 1.0 : 0.55,
+    child: Card(
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: const Color(0xFFE8ECF0), width: 1),
+        side: BorderSide(
+          color: produto.ativo
+              ? const Color(0xFFE8ECF0)
+              : const Color(0xFFE0AAAA),
+          width: 1,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -210,11 +218,16 @@ class _ProdutoCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE6F1FB),
+                      color: produto.ativo
+                          ? const Color(0xFFE6F1FB)
+                          : const Color(0xFFF0F0F0),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.water_drop,
-                        color: Color(0xFF185FA5), size: 24),
+                    child: Icon(Icons.water_drop,
+                        color: produto.ativo
+                            ? const Color(0xFF185FA5)
+                            : const Color(0xFFAAAAAA),
+                        size: 24),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -245,6 +258,26 @@ class _ProdutoCard extends StatelessWidget {
                     quantidade: produto.quantidadeDisponivel,
                     temEstoque: temEstoque,
                   ),
+                  // ── Badge inativo ──
+                  if (!produto.ativo) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5E6E6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Inativo',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFA32D2D),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 14),
@@ -260,7 +293,8 @@ class _ProdutoCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   _PrecoChip(
                     label: 'Reenchi.',
-                    valor: 'MT ${produto.precoReenchimento.toStringAsFixed(2)}',
+                    valor:
+                        'MT ${produto.precoReenchimento.toStringAsFixed(2)}',
                     cor: const Color(0xFF0F6E56),
                   ),
                   const Spacer(),
@@ -283,27 +317,28 @@ class _ProdutoCard extends StatelessWidget {
                           context.read<ProdutoProvider>().carregarProdutos());
                     },
                   ),
-                IconButton(
-  tooltip: produto.ativo ? 'Desativar' : 'Ativar',
-  icon: Icon(
-    produto.ativo
-        ? Icons.toggle_on_outlined
-        : Icons.toggle_off_outlined,
-    size: 24,
-    color: produto.ativo
-        ? const Color(0xFF0F6E56)
-        : const Color(0xFFA32D2D),
-  ),
-  onPressed: () => onToggle(context, produto, !produto.ativo),
-),
+                  IconButton(
+                    tooltip: produto.ativo ? 'Desativar' : 'Ativar',
+                    icon: Icon(
+                      produto.ativo
+                          ? Icons.toggle_on_outlined
+                          : Icons.toggle_off_outlined,
+                      size: 24,
+                      color: produto.ativo
+                          ? const Color(0xFF0F6E56)
+                          : const Color(0xFFA32D2D),
+                    ),
+                    onPressed: () => onToggle(context, produto, !produto.ativo),
+                  ),
                 ],
               ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _EstoqueBadge extends StatelessWidget {
