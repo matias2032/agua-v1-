@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case StatusAutenticacao.sucesso:
         await SessaoService.instance.setUsuario(resultado.usuario!);
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/gerenciar_produtos');
+        Navigator.pushReplacementNamed(context, '/menu');
 
       case StatusAutenticacao.primeiraSenha:
         await SessaoService.instance.setUsuario(resultado.usuario!);

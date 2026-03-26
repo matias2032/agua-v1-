@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 
-// Telas de Usuários
+// ─── Telas Usuários ─────────────────────────────────────────
 import 'screens/gerenciar_usuarios.dart';
 import 'screens/detalhes_usuario.dart';
 import 'screens/cadastrar_usuario.dart';
@@ -10,16 +10,20 @@ import 'screens/alterar_senha.dart';
 import 'screens/editar_usuario.dart';
 import 'screens/primeira_troca_senha.dart';
 
-// Telas de Produtos
-import 'screens/produto_detalhe_screen.dart';
-import 'screens/produto_form_screen.dart';
+// ─── Telas Produtos ─────────────────────────────────────────
 import 'screens/produto_lista_screen.dart';
+import 'screens/produto_form_screen.dart';
 
-// Telas de Estoque
+// 🆕 NOVAS TELAS
+import 'screens/menu.dart';
+import 'screens/detalhes_produto.dart';
+import 'screens/pedidos_por_finalizar.dart';
+
+// ─── Estoque ───────────────────────────────────────────────
 import 'screens/estoque_dashboard_screen.dart';
 import 'screens/movimentos_estoque_screen.dart';
 
-// Login
+// ─── Auth ──────────────────────────────────────────────────
 import 'screens/login_screen.dart';
 
 void main() async {
@@ -38,6 +42,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ProdutoProvider()),
         ChangeNotifierProvider(create: (_) => EstoqueProvider()),
+        ChangeNotifierProvider(create: (_) => PedidoProvider()), // ✅ NOVO
       ],
       child: const MyApp(),
     ),
@@ -66,54 +71,70 @@ class MyApp extends StatelessWidget {
       ),
       themeMode: ThemeMode.system,
 
-      // ── Tela inicial: sempre o login ──────────────────────────────────────
+      // 🔥 Continua login como entrada
       initialRoute: '/login',
 
       onGenerateRoute: (settings) {
-        // ─── Rotas com argumentos ──────────────────────────────────────────
+
+        // ─── ROTAS COM ARGUMENTOS ─────────────────────────
+
         if (settings.name == '/detalhes_usuario') {
           final usuarioId = settings.arguments as int;
           return MaterialPageRoute(
-            builder: (context) => DetalhesUsuarioScreen(usuarioId: usuarioId),
+            builder: (_) => DetalhesUsuarioScreen(usuarioId: usuarioId),
           );
         }
 
-        if (settings.name == '/produto_detalhes') {
-          final id = settings.arguments as int;
+        if (settings.name == '/detalhes_produto') {
+          final produto = settings.arguments as DisponibilidadeProdutoModel;
           return MaterialPageRoute(
-            builder: (context) => ProdutoDetalheScreen(idProduto: id),
+            builder: (_) => DetalhesProdutoScreen(produto: produto),
           );
         }
 
-        // ─── Rotas simples ─────────────────────────────────────────────────
+        // ─── ROTAS SIMPLES ───────────────────────────────
+
         switch (settings.name) {
+
           // AUTH
           case '/login':
             return MaterialPageRoute(
               builder: (_) => const LoginScreen(),
             );
 
-          // PRODUTOS
+          // 🆕 MENU PRINCIPAL
+          case '/menu':
+            return MaterialPageRoute(
+              builder: (_) => const MenuScreen(),
+            );
+
+          // 🆕 PEDIDOS
+          case '/pedidos-por-finalizar':
+            return MaterialPageRoute(
+              builder: (_) => const PedidosPorFinalizarScreen(),
+            );
+
+          // PRODUTOS (LEGADO / ADMIN)
           case '/gerenciar_produtos':
             return MaterialPageRoute(
-              builder: (context) => const ProdutoListaScreen(),
+              builder: (_) => const ProdutoListaScreen(),
             );
 
           case '/ProdutoFormScreen':
             return MaterialPageRoute(
-              builder: (context) => const ProdutoFormScreen(),
+              builder: (_) => const ProdutoFormScreen(),
             );
 
           // USUÁRIOS
           case '/usuarios':
           case '/gerenciar_usuarios':
             return MaterialPageRoute(
-              builder: (context) => const UsuarioListScreen(),
+              builder: (_) => const UsuarioListScreen(),
             );
 
           case '/cadastrar_usuarios':
             return MaterialPageRoute(
-              builder: (context) => const UsuarioFormScreen(),
+              builder: (_) => const UsuarioFormScreen(),
             );
 
           case '/editar_usuario':
@@ -128,7 +149,7 @@ class MyApp extends StatelessWidget {
 
           case '/primeira_troca_senha':
             return MaterialPageRoute(
-              builder: (context) => const PrimeiraTrocaSenhaScreen(),
+              builder: (_) => const PrimeiraTrocaSenhaScreen(),
             );
 
           // ESTOQUE

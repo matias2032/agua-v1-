@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
-import 'produto_detalhe_screen.dart';
 import 'produto_form_screen.dart';
 
 const _tag = 'ProdutoListaScreen';
@@ -199,12 +198,7 @@ Widget build(BuildContext context) {
         onTap: () {
           AppLogger.info('ProdutoCard',
               'Abrir detalhe id=${produto.idProduto}');
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    ProdutoDetalheScreen(idProduto: produto.idProduto)),
-          );
+     
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
