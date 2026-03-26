@@ -73,7 +73,7 @@ final sucesso = await ServicoAutenticacao()
       SessaoService.instance.limparSessao();
       
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     }
   } catch (e, stackTrace) {
