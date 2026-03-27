@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 import 'produto_form_screen.dart';
+import '/widgets/app_sidebar.dart';
 
 const _tag = 'ProdutoListaScreen';
 
@@ -74,6 +75,7 @@ void initState() {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FB),
+        drawer: const AppSidebar(),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,

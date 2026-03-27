@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
-
 import 'estoque_ajuste_sheet.dart';
 import 'estoque_definir_sheet.dart';
 import 'movimentos_estoque_screen.dart';
+import '/widgets/app_sidebar.dart';
 
 class EstoqueDashboardScreen extends StatefulWidget {
   const EstoqueDashboardScreen({super.key});
@@ -27,6 +27,7 @@ class _EstoqueDashboardScreenState extends State<EstoqueDashboardScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+        drawer: const AppSidebar(),
       appBar: AppBar(
         title: const Text('Estoque de Água'),
         actions: [

@@ -10,84 +10,59 @@ class MovimentosEstoqueScreen extends StatefulWidget {
       _MovimentosEstoqueScreenState();
 }
 
-class _MovimentosEstoqueScreenState extends State<MovimentosEstoqueScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
+class _MovimentosEstoqueScreenState extends State<MovimentosEstoqueScreen> {
+  
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    // Inicia o carregamento apenas dos movimentos manuais ao abrir a tela
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = context.read<EstoqueProvider>();
-      p.carregarTodos();
-      p.carregarManuais();
+      p.carregarManuais(); 
     });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Movimentos de Estoque'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Todos'),
-            Tab(text: 'Manuais'),
-          ],
-        ),
+        title: const Text('Movimentos Manuais'),
+        centerTitle: true,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _ListaMovimentos(modo: _ModoLista.todos),
-          _ListaMovimentos(modo: _ModoLista.manuais),
-        ],
-      ),
+      // Removida a TabBarView para exibir diretamente a lista manual
+      body: const _ListaMovimentosManuais(),
     );
   }
 }
 
-// ─── Modo de listagem ──────────────────────────────────────────────────────────
+// ─── Lista de movimentos manuais ───────────────────────────────────────────────
 
-enum _ModoLista { todos, manuais }
-
-// ─── Lista de movimentos ───────────────────────────────────────────────────────
-
-class _ListaMovimentos extends StatelessWidget {
-  final _ModoLista modo;
-
-  const _ListaMovimentos({required this.modo});
+class _ListaMovimentosManuais extends StatelessWidget {
+  const _ListaMovimentosManuais();
 
   @override
   Widget build(BuildContext context) {
     return Consumer<EstoqueProvider>(
       builder: (context, provider, _) {
-        final pagina =
-            modo == _ModoLista.todos ? provider.paginaTodos : provider.paginaManuais;
+        // Foco exclusivo na página de manuais do provider
+        final pagina = provider.paginaManuais;
 
+        // Estado inicial de carregamento
         if (provider.carregando && pagina == null) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // Tratamento de erro específico para a carga manual
         if (provider.estado == EstadoEstoque.erro && pagina == null) {
           return _ErroView(
-            mensagem: provider.erro ?? 'Erro desconhecido',
-            onRetry: () => modo == _ModoLista.todos
-                ? provider.carregarTodos()
-                : provider.carregarManuais(),
+            mensagem: provider.erro ?? 'Erro ao carregar movimentos manuais',
+            onRetry: () => provider.carregarManuais(),
           );
         }
 
         final movimentos = pagina?.conteudo ?? [];
 
+        // View para lista vazia
         if (movimentos.isEmpty) {
           return const Center(
             child: Column(
@@ -95,7 +70,7 @@ class _ListaMovimentos extends StatelessWidget {
               children: [
                 Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
                 SizedBox(height: 12),
-                Text('Nenhum movimento encontrado',
+                Text('Nenhum movimento manual encontrado',
                     style: TextStyle(color: Colors.grey)),
               ],
             ),
@@ -103,12 +78,10 @@ class _ListaMovimentos extends StatelessWidget {
         }
 
         return RefreshIndicator(
-          onRefresh: () => modo == _ModoLista.todos
-              ? provider.carregarTodos()
-              : provider.carregarManuais(),
+          onRefresh: () => provider.carregarManuais(),
           child: Column(
             children: [
-              // ─── Contador ───────────────────────────────────────────
+              // ─── Contador de Registros ──────────────────────────────
               if (pagina != null)
                 Padding(
                   padding:
@@ -116,7 +89,7 @@ class _ListaMovimentos extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(
-                        '${pagina.totalElementos} movimentos',
+                        '${pagina.totalElementos} movimentos manuais',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
@@ -134,7 +107,7 @@ class _ListaMovimentos extends StatelessWidget {
                   ),
                 ),
 
-              // ─── Lista ──────────────────────────────────────────────
+              // ─── Lista Principal ────────────────────────────────────
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
@@ -144,16 +117,12 @@ class _ListaMovimentos extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     if (index == movimentos.length) {
-                      // ─── Botão carregar mais ──────────────────────
+                      // Paginação: Carregar próxima página manual
                       return _BotaoCarregarMais(
                         onTap: () {
                           final proximaPagina =
                               (pagina?.paginaActual ?? 0) + 1;
-                          if (modo == _ModoLista.todos) {
-                            provider.carregarTodos(page: proximaPagina);
-                          } else {
-                            provider.carregarManuais(page: proximaPagina);
-                          }
+                          provider.carregarManuais(page: proximaPagina);
                         },
                       );
                     }
@@ -191,7 +160,7 @@ class _CardMovimento extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── Ícone de tipo ──────────────────────────────────────
+            // Ícone de tipo (Entrada/Saída)
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -202,12 +171,10 @@ class _CardMovimento extends StatelessWidget {
             ),
             const SizedBox(width: 12),
 
-            // ─── Conteúdo ───────────────────────────────────────────
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Litros movimentados + badge manual
                   Row(
                     children: [
                       Text(
@@ -219,18 +186,13 @@ class _CardMovimento extends StatelessWidget {
                                 color: cor, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
-                      if (movimento.manual)
-                        _Badge(label: 'Manual', cor: colorScheme.secondary),
-                      if (!movimento.manual && movimento.idPedido != null)
-                        _Badge(
-                          label: 'Pedido #${movimento.idPedido}',
-                          cor: colorScheme.tertiary,
-                        ),
+                      // Badge manual (sempre presente nesta tela)
+                      _Badge(label: 'Manual', cor: colorScheme.secondary),
                     ],
                   ),
                   const SizedBox(height: 4),
 
-                  // Saldo anterior → novo
+                  // Fluxo do estoque
                   Text(
                     '${movimento.litrosAnterior.toStringAsFixed(1)} L  →  ${movimento.litrosNovo.toStringAsFixed(1)} L',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -238,7 +200,7 @@ class _CardMovimento extends StatelessWidget {
                         ),
                   ),
 
-                  // Motivo / observação
+                  // Motivo preenchido pelo usuário
                   if (movimento.motivo != null &&
                       movimento.motivo!.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -261,7 +223,7 @@ class _CardMovimento extends StatelessWidget {
               ),
             ),
 
-            // ─── Utilizador ─────────────────────────────────────────
+            // ID do Utilizador responsável
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 import '../widgets/app_sidebar.dart';
+import '/widgets/app_sidebar.dart';
 
 // =============================================================================
 // ENUMS DE FILTRO
@@ -202,6 +203,7 @@ void _recarregar() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        drawer: const AppSidebar(),
       appBar: AppBar(
         title: Text('Usuários — ${_getFiltroLabel()}'),
         backgroundColor: Colors.deepOrange,
