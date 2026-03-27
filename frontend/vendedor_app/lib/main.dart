@@ -22,6 +22,7 @@ import 'screens/pedidos_por_finalizar.dart';
 // ─── Estoque ───────────────────────────────────────────────
 import 'screens/estoque_dashboard_screen.dart';
 import 'screens/movimentos_estoque_screen.dart';
+import 'screens/dashboard_screen.dart';
 
 // ─── Auth ──────────────────────────────────────────────────
 import 'screens/login_screen.dart';
@@ -38,14 +39,20 @@ void main() async {
   ApiConfig.printConfig();
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ProdutoProvider()),
-        ChangeNotifierProvider(create: (_) => EstoqueProvider()),
-        ChangeNotifierProvider(create: (_) => PedidoProvider()), // ✅ NOVO
-      ],
-      child: const MyApp(),
+ MultiProvider(
+  providers: [
+    ChangeNotifierProvider(create: (_) => ProdutoProvider()),
+    ChangeNotifierProvider(create: (_) => EstoqueProvider()),
+    ChangeNotifierProxyProvider<ProdutoProvider, PedidoProvider>(
+      create: (_) => PedidoProvider(),
+      update: (_, prodProv, pedProv) {
+        pedProv!.setProdutoProvider(prodProv);
+        return pedProv;
+      },
     ),
+  ],
+  child: const MyApp(),
+),
   );
 }
 
@@ -106,6 +113,7 @@ class MyApp extends StatelessWidget {
           case '/menu':
             return MaterialPageRoute(
               builder: (_) => const MenuScreen(),
+               settings: settings,
             );
 
           // 🆕 PEDIDOS
@@ -118,6 +126,7 @@ class MyApp extends StatelessWidget {
           case '/gerenciar_produtos':
             return MaterialPageRoute(
               builder: (_) => const ProdutoListaScreen(),
+               settings: settings,
             );
 
           case '/ProdutoFormScreen':
@@ -130,6 +139,7 @@ class MyApp extends StatelessWidget {
           case '/gerenciar_usuarios':
             return MaterialPageRoute(
               builder: (_) => const UsuarioListScreen(),
+               settings: settings,
             );
 
           case '/cadastrar_usuarios':
@@ -150,18 +160,26 @@ class MyApp extends StatelessWidget {
           case '/primeira_troca_senha':
             return MaterialPageRoute(
               builder: (_) => const PrimeiraTrocaSenhaScreen(),
+
             );
 
           // ESTOQUE
           case '/estoque':
             return MaterialPageRoute(
               builder: (_) => const EstoqueDashboardScreen(),
+               settings: settings,
             );
 
           case '/movimentos_estoque':
             return MaterialPageRoute(
               builder: (_) => const MovimentosEstoqueScreen(),
+               settings: settings,
             );
+case '/dashboard':
+  return MaterialPageRoute(
+    builder: (_) => const DashboardScreen(),
+    settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
+  );
 
           default:
             return null;

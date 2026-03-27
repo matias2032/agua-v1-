@@ -89,10 +89,10 @@ public class PedidoService {
             // fator<1.000 → reenchimento → precoReenchimento (já reflecte o desconto base)
             // Porém, segundo a especificação, a fórmula é: precoBase × fatorOperacao
             // onde precoBase é sempre precoCompra (o fator já encapsula o desconto)
-            BigDecimal precoBase = produto.getPrecoCompra();
-            BigDecimal precoUnitario = precoBase
-                    .multiply(operacaoItem.getFatorPreco())
-                    .setScale(2, RoundingMode.HALF_UP);
+          BigDecimal precoUnitario = (idOperacaoItem == 1)
+        ? produto.getPrecoCompra()
+        : produto.getPrecoReenchimento();
+precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
 
             totalLitrosNecessarios = totalLitrosNecessarios.add(litrosConsumidos);
 
@@ -193,6 +193,7 @@ public class PedidoService {
 
     @Transactional
     public PedidoDTO.Response finalizar(Integer id) {
+        
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado: id=" + id));
 
@@ -210,6 +211,83 @@ public class PedidoService {
         List<ItemPedido> itens = itemPedidoRepository.findByIdPedido(id);
         return toResponse(pedido, itens, null, null);
     }
+
+    // Adicionar após o método finalizar():
+
+@Transactional
+public PedidoDTO.Response adicionarItem(Integer idPedido, PedidoDTO.AdicionarItemRequest request) {
+    // 1. Validar pedido existe e está pendente
+    Pedido pedido = pedidoRepository.findById(idPedido)
+            .orElseThrow(() -> new RuntimeException("Pedido não encontrado: id=" + idPedido));
+
+    if ("cancelado".equals(pedido.getStatusPedido())) {
+        throw new RuntimeException("Não é possível adicionar itens a um pedido cancelado");
+    }
+    if ("finalizado".equals(pedido.getStatusPedido())) {
+        throw new RuntimeException("Não é possível adicionar itens a um pedido finalizado");
+    }
+
+    // 2. Resolver produto
+    Produto produto = produtoRepository.findByIdProdutoAndAtivoTrue(request.getIdProduto())
+            .orElseThrow(() -> new RuntimeException(
+                    "Produto não encontrado ou inactivo: id=" + request.getIdProduto()));
+
+    // 3. Resolver operação — herda a do pedido se não vier
+    Integer idOperacaoItem = request.getIdOperacao() != null
+            ? request.getIdOperacao()
+            : pedido.getIdOperacao();
+
+    Operacao operacao = operacaoRepository.findById(idOperacaoItem)
+            .orElseThrow(() -> new RuntimeException(
+                    "Operação não encontrada: id=" + idOperacaoItem));
+
+    // 4. Calcular litros e preço
+    BigDecimal litrosConsumidos = produto.getCapacidadeLitros()
+            .multiply(BigDecimal.valueOf(request.getQuantidade()));
+
+BigDecimal precoUnitario = (idOperacaoItem == 1)
+        ? produto.getPrecoCompra()
+        : produto.getPrecoReenchimento();
+precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
+
+    // 5. Verificar estoque suficiente
+    BigDecimal litrosDisponiveis = estoqueRepository.findUltimo()
+            .orElseThrow(() -> new RuntimeException("Estoque não encontrado"))
+            .getLitrosDisponiveis();
+
+    if (litrosConsumidos.compareTo(litrosDisponiveis) > 0) {
+        throw new RuntimeException(String.format(
+                "Estoque insuficiente. Necessário: %.3f L, Disponível: %.3f L",
+                litrosConsumidos, litrosDisponiveis));
+    }
+
+    // 6. Persistir item — trigger trg_saida_estoque_venda dispara aqui
+    ItemPedido novoItem = ItemPedido.builder()
+            .idPedido(idPedido)
+            .idProduto(produto.getIdProduto())
+            .idOperacao(idOperacaoItem)
+            .quantidade(request.getQuantidade())
+            .litrosConsumidos(litrosConsumidos)
+            .precoUnitario(precoUnitario)
+            .build();
+
+    itemPedidoRepository.save(novoItem);
+
+    // 7. Recalcular total do pedido
+    List<ItemPedido> todosItens = itemPedidoRepository.findByIdPedido(idPedido);
+    BigDecimal novoTotal = todosItens.stream()
+            .map(i -> i.getPrecoUnitario().multiply(BigDecimal.valueOf(i.getQuantidade())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    pedido.setTotal(novoTotal);
+    pedidoRepository.save(pedido);
+
+    // Recarregar para obter valores gerados pelo banco
+    pedido = pedidoRepository.findById(idPedido)
+            .orElseThrow(() -> new RuntimeException("Pedido não encontrado após actualização"));
+
+    return toResponse(pedido, todosItens, null, null);
+}
 
     @Transactional
     public PedidoDTO.Response actualizarValorPago(Integer id, PedidoDTO.ValorPagoRequest request) {

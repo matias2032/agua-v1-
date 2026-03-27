@@ -75,6 +75,15 @@ public class PedidoController {
         return ResponseEntity.ok(ApiResponse.ok(pedidoService.finalizar(id)));
     }
 
+@PostMapping("/api/pedidos/{id}/itens")
+public ResponseEntity<ApiResponse<PedidoDTO.Response>> adicionarItem(
+        @PathVariable Integer id,
+        @Valid @RequestBody PedidoDTO.AdicionarItemRequest request) {
+    System.out.println(">>> adicionarItem chamado, id=" + id); // remover depois
+    PedidoDTO.Response actualizado = pedidoService.adicionarItem(id, request);
+    return ResponseEntity.ok(ApiResponse.ok(actualizado));
+}
+
     // ─── Registar valor pago ──────────────────────────────────────────────────
 
     @PatchMapping("/api/pedidos/{id}/valor-pago")

@@ -91,3 +91,22 @@ class ValorPagoRequest {
         'valorPago': valorPago.toStringAsFixed(2),
       };
 }
+
+/// Espelha [PedidoDTO.AdicionarItemRequest] do backend Java.
+class AdicionarItemRequest {
+  final int idProduto;
+  final int quantidade;
+  final int? idOperacao;
+
+  const AdicionarItemRequest({
+    required this.idProduto,
+    required this.quantidade,
+    this.idOperacao,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'idProduto': idProduto,
+        'quantidade': quantidade,
+        if (idOperacao != null) 'idOperacao': idOperacao,
+      };
+}

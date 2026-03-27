@@ -9,16 +9,46 @@ const _tag = 'PedidoProvider';
 
 class PedidoProvider extends ChangeNotifier {
   final PedidoService _service;
+   ProdutoProvider? _produtoProvider; 
 
   PedidoProvider({PedidoService? service})
       : _service = service ?? PedidoService.instance;
+
+        void setProdutoProvider(ProdutoProvider prov) {
+    _produtoProvider = prov;
+  }
 
   // ── Estado ───────────────────────────────────────────────────────────────
 
   List<PedidoModel> _pedidos = [];
   PedidoModel? _pedidoActual;
+    PedidoModel? _pedidoActivo; 
   bool _carregando = false;
   String? _erro;
+
+    PedidoModel? get pedidoActivo => _pedidoActivo;
+  bool get temPedidoActivo => _pedidoActivo != null;
+
+
+  void activarPedido(PedidoModel pedido) {
+    // Só pedidos pendentes podem ser activos
+    if (!pedido.isPendente) return;
+    _pedidoActivo = pedido;
+    notifyListeners();
+  }
+
+  void desactivarPedido() {
+    _pedidoActivo = null;
+    notifyListeners();
+  }
+
+  void toggleActivacao(PedidoModel pedido) {
+    if (_pedidoActivo?.idPedido == pedido.idPedido) {
+      desactivarPedido();
+    } else {
+      activarPedido(pedido);
+    }
+  }
 
   // Paginação
   int _paginaActual = 0;
@@ -112,14 +142,15 @@ class PedidoProvider extends ChangeNotifier {
   // ── Mutações ─────────────────────────────────────────────────────────────
 
   /// Cria um novo pedido. Retorna o pedido criado ou null em caso de erro.
-  Future<PedidoModel?> criar(PedidoRequest request, int idUsuario) async {
+Future<PedidoModel?> criar(PedidoRequest request, int idUsuario) async {
     _setCarregando(true);
     try {
       final novo = await _service.criar(request, idUsuario);
       _pedidos = [novo, ..._pedidos];
       _pedidoActual = novo;
+      _pedidoActivo = novo; // ← activa imediatamente ao criar
       _setErro(null);
-      AppLogger.info(_tag, 'Pedido criado: id=${novo.idPedido}');
+      AppLogger.info(_tag, 'Pedido criado e activado: id=${novo.idPedido}');
       return novo;
     } catch (e) {
       _setErro(e.toString());
@@ -137,6 +168,8 @@ class PedidoProvider extends ChangeNotifier {
       final actualizado = await _service.finalizar(id);
       _actualizarNaLista(actualizado);
       if (_pedidoActual?.idPedido == id) _pedidoActual = actualizado;
+      // Desactiva se era o pedido activo
+      if (_pedidoActivo?.idPedido == id) _pedidoActivo = null;
       _setErro(null);
       AppLogger.info(_tag, 'Pedido $id finalizado');
       return true;
@@ -168,27 +201,75 @@ class PedidoProvider extends ChangeNotifier {
   }
 
   /// Cancela um pedido. Remove da lista local se a filtragem excluir cancelados.
-  Future<bool> cancelar(
-    int id,
-    CancelamentoPedidoRequest request,
-    int idUsuario,
-  ) async {
-    _setCarregando(true);
+/// Cancela um pedido. Remove optimisticamente da lista e recarrega estoque.
+  Future<bool> cancelar(int id, CancelamentoPedidoRequest request, int idUsuario) async {
+    final idx = _pedidos.indexWhere((p) => p.idPedido == id);
+    final backup = idx != -1 ? _pedidos[idx] : null;
+    if (idx != -1) {
+      _pedidos = List.from(_pedidos)..removeAt(idx);
+      notifyListeners();
+    }
+    // Desactiva optimisticamente se era o activo
+    final eraActivo = _pedidoActivo?.idPedido == id;
+    if (eraActivo) _pedidoActivo = null;
+
     try {
-      final actualizado = await _service.cancelar(id, request, idUsuario);
-      _actualizarNaLista(actualizado);
-      if (_pedidoActual?.idPedido == id) _pedidoActual = actualizado;
+      await _service.cancelar(id, request, idUsuario);
+      _produtoProvider?.carregarProdutos();
       _setErro(null);
       AppLogger.info(_tag, 'Pedido $id cancelado');
       return true;
     } catch (e) {
+      // Rollback
+      if (backup != null && idx != -1) {
+        _pedidos = List.from(_pedidos)..insert(idx, backup);
+        if (eraActivo) _pedidoActivo = backup;
+        notifyListeners();
+      }
       _setErro(e.toString());
       AppLogger.error(_tag, 'Erro ao cancelar pedido $id: $e');
       return false;
-    } finally {
-      _setCarregando(false);
     }
   }
+
+  /// Adiciona item ao pedido activo. Nunca cria pedido novo.
+Future<PedidoModel?> adicionarItemAoPedidoActivo({
+  required int idProduto,
+  required int quantidade,
+  int? idOperacao,
+}) async {
+  if (_pedidoActivo == null) {
+    _setErro('Nenhum pedido activo');
+    return null;
+  }
+
+  _setCarregando(true);
+  try {
+    final request = AdicionarItemRequest(
+      idProduto: idProduto,
+      quantidade: quantidade,
+      idOperacao: idOperacao,
+    );
+
+    final actualizado = await _service.adicionarItem(
+      _pedidoActivo!.idPedido,
+      request,
+    );
+
+    // Actualiza pedido activo e lista local com o pedido actualizado
+    _pedidoActivo = actualizado;
+    _actualizarNaLista(actualizado);
+    _setErro(null);
+    AppLogger.info(_tag, 'Item adicionado ao pedido activo #${actualizado.idPedido}');
+    return actualizado;
+  } catch (e) {
+    _setErro(e.toString());
+    AppLogger.error(_tag, 'Erro ao adicionar item: $e');
+    return null;
+  } finally {
+    _setCarregando(false);
+  }
+}
 
   // ── Auxiliares ────────────────────────────────────────────────────────────
 

@@ -153,4 +153,22 @@ public class PedidoDTO {
         @DecimalMin(value = "0.0", message = "Valor pago não pode ser negativo")
         private BigDecimal valorPago;
     }
+
+    @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public static class AdicionarItemRequest {
+
+    @NotNull(message = "Produto é obrigatório")
+    private Integer idProduto;
+
+    @NotNull(message = "Quantidade é obrigatória")
+    @Min(value = 1, message = "Quantidade mínima é 1")
+    private Integer quantidade;
+
+    // Se não vier, herda a operação do pedido (Regra 3)
+    private Integer idOperacao;
+}
 }

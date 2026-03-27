@@ -190,6 +190,16 @@ class PedidoService {
         res, (json) => PedidoModel.fromJson(json as Map<String, dynamic>));
   }
 
+    Future<PedidoModel> adicionarItem(int idPedido, AdicionarItemRequest request) async {
+  final uri = Uri.parse('$_pedidosUrl/$idPedido/itens');
+  final payload = jsonEncode(request.toJson());
+  AppLogger.info(_tag, 'POST $uri → $payload');
+  final res = await _client.post(uri, headers: _headers, body: payload);
+  return _parseDados(
+      res, (json) => PedidoModel.fromJson(json as Map<String, dynamic>));
+}
+
+
   void dispose() {
     AppLogger.info(_tag, 'dispose — fechando http.Client');
     _client.close();

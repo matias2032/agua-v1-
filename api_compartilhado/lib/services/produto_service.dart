@@ -166,6 +166,7 @@ class ProdutoService {
         res, (json) => OperacaoModel.fromJson(json as Map<String, dynamic>));
   }
 
+
   void dispose() {
     AppLogger.info(_tag, 'dispose — fechando http.Client');
     _client.close();

@@ -84,11 +84,25 @@ class _DetalhesProdutoScreenState extends State<DetalhesProdutoScreen>
 
   // ── Criar pedido ──────────────────────────────────────────────────────────
 
-  Future<void> _criarPedido() async {
-    if (!_podecriar) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _criando = true);
+Future<void> _criarOuAdicionarAoPedido() async {
+  if (!_podecriar) return;
+  HapticFeedback.mediumImpact();
+  setState(() => _criando = true);
 
+  final pedProv = context.read<PedidoProvider>();
+  final temActivo = pedProv.temPedidoActivo;
+
+  PedidoModel? resultado;
+
+  if (temActivo) {
+    // ── Adiciona ao pedido activo via endpoint dedicado ───────────────────
+    resultado = await pedProv.adicionarItemAoPedidoActivo(
+      idProduto: widget.produto.idProduto,
+      quantidade: _quantidade,
+      idOperacao: _idOperacao,
+    );
+  } else {
+    // ── Sem pedido activo: cria novo (fica activo automaticamente) ────────
     final idUsuario = SessaoService.instance.idUsuario;
     if (idUsuario == null) {
       _mostrarErro('Sessão expirada. Faça login novamente.');
@@ -98,7 +112,7 @@ class _DetalhesProdutoScreenState extends State<DetalhesProdutoScreen>
 
     final request = PedidoRequest(
       idOperacao: _idOperacao,
-      idTipoPagamento: _idTipoPagamento,
+      idTipoPagamento: 1,
       itens: [
         ItemPedidoRequest(
           idProduto: widget.produto.idProduto,
@@ -107,19 +121,19 @@ class _DetalhesProdutoScreenState extends State<DetalhesProdutoScreen>
         ),
       ],
     );
-
-    final prov = context.read<PedidoProvider>();
-    final pedido = await prov.criar(request, idUsuario);
-
-    setState(() => _criando = false);
-
-    if (pedido != null && mounted) {
-     HapticFeedback.heavyImpact();
-      _mostrarSucesso(pedido.idPedido);
-    } else if (prov.temErro && mounted) {
-      _mostrarErro(prov.erro ?? 'Erro ao criar pedido');
-    }
+    resultado = await pedProv.criar(request, idUsuario);
   }
+
+  setState(() => _criando = false);
+
+  if (resultado != null && mounted) {
+    HapticFeedback.heavyImpact();
+    context.read<ProdutoProvider>().carregarProdutos();
+    _mostrarSucesso(resultado.idPedido);
+  } else if (pedProv.temErro && mounted) {
+    _mostrarErro(pedProv.erro ?? 'Erro ao processar pedido');
+  }
+}
 
   // Getter usado acima — corrigido typo
  bool get _podecriar => !_excedeLimite && _quantidade >= 1 && !_criando;
@@ -201,8 +215,7 @@ class _DetalhesProdutoScreenState extends State<DetalhesProdutoScreen>
                         const SizedBox(height: 20),
                         _buildOperacaoSelector(),
                         const SizedBox(height: 20),
-                        _buildPagamentoSelector(),
-                        const SizedBox(height: 20),
+                                                const SizedBox(height: 20),
                         _buildQuantidadeControl(),
                         const SizedBox(height: 20),
                         _buildResumo(),
@@ -423,73 +436,7 @@ class _DetalhesProdutoScreenState extends State<DetalhesProdutoScreen>
 
   // ── Selector de pagamento ─────────────────────────────────────────────────
 
-  Widget _buildPagamentoSelector() {
-    // Tipos fixos (correspondem aos dados iniciais do schema)
-    const tipos = [
-      (id: 1, nome: 'Dinheiro', icone: Icons.payments_rounded),
-      (id: 2, nome: 'Transferência', icone: Icons.account_balance_rounded),
-      (id: 3, nome: 'Débito', icone: Icons.credit_card_rounded),
-      (id: 4, nome: 'Crédito', icone: Icons.credit_score_rounded),
-    ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionLabel(texto: 'Forma de pagamento'),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 72,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: tipos.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) {
-              final t = tipos[i];
-              final sel = _idTipoPagamento == t.id;
-              return GestureDetector(
-                onTap: () => setState(() => _idTipoPagamento = t.id),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 90,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: sel
-                        ? _kAccent.withOpacity(0.15)
-                        : _kCard,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: sel
-                          ? _kAccent.withOpacity(0.5)
-                          : _kCardBorder,
-                      width: sel ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(t.icone,
-                          color: sel ? _kAccent : _kTextSecondary,
-                          size: 20),
-                      const SizedBox(height: 4),
-                      Text(
-                        t.nome,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: sel ? _kAccent : _kTextSecondary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
 
   // ── Controlo de quantidade ────────────────────────────────────────────────
 
@@ -652,112 +599,122 @@ class _DetalhesProdutoScreenState extends State<DetalhesProdutoScreen>
 
   // ── Botão de acção ────────────────────────────────────────────────────────
 
-  Widget _buildBottomAction() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      decoration: BoxDecoration(
-        color: _kBg,
-        border: Border(top: BorderSide(color: _kCardBorder)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Aviso de bloqueio
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              child: _excedeLimite
-                  ? Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _kDanger.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: _kDanger.withOpacity(0.3)),
+Widget _buildBottomAction() {
+  return Consumer<PedidoProvider>(
+    builder: (_, pedProv, __) {
+      final activo = pedProv.pedidoActivo;
+      final labelBotao = activo != null
+          ? 'Adicionar ao Pedido #${activo.idPedido} • ${_subtotal.toStringAsFixed(2)} MT'
+          : 'Criar Novo Pedido • ${_subtotal.toStringAsFixed(2)} MT';
+      final iconeBotao = activo != null
+          ? Icons.add_circle_outline_rounded
+          : Icons.add_shopping_cart_rounded;
+
+      return Container(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        decoration: BoxDecoration(
+          color: _kBg,
+          border: Border(top: BorderSide(color: _kCardBorder)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Banner do pedido activo
+              if (activo != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _kAccent.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kAccent.withOpacity(0.25)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.receipt_long_rounded, color: _kAccent, size: 14),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pedido activo: #${activo.idPedido}'
+                          '${activo.nomeCliente?.isNotEmpty == true ? ' · ${activo.nomeCliente}' : ''}',
+                          style: const TextStyle(fontSize: 12, color: _kAccent, fontWeight: FontWeight.w600),
+                        ),
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.block_rounded,
-                              color: _kDanger, size: 16),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Pedido bloqueado — quantidade excede o estoque',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: _kDanger,
-                                fontWeight: FontWeight.w600,
+                    ],
+                  ),
+                ),
+              // Aviso de bloqueio
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                child: _excedeLimite
+                    ? Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _kDanger.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _kDanger.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.block_rounded, color: _kDanger, size: 16),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Pedido bloqueado — quantidade excede o estoque',
+                                style: TextStyle(fontSize: 13, color: _kDanger, fontWeight: FontWeight.w600),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            // Botão principal
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              // Botão principal
+              SizedBox(
+                width: double.infinity,
+                height: 56,
                 child: ElevatedButton(
-                  onPressed:
-                      (_podecriar && !_criando) ? _criarPedido : null,
+                  onPressed: (_podecriar && !_criando) ? _criarOuAdicionarAoPedido : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _podecriar ? _kAccent : _kCardBorder,
-                    foregroundColor:
-                        _podecriar ? _kBg : _kTextSecondary,
+                    backgroundColor: _podecriar ? _kAccent : _kCardBorder,
+                    foregroundColor: _podecriar ? _kBg : _kTextSecondary,
                     elevation: _podecriar ? 8 : 0,
                     shadowColor: _kAccent.withOpacity(0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: _criando
                       ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                         )
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              _excedeLimite
-                                  ? Icons.block_rounded
-                                  : Icons.add_shopping_cart_rounded,
-                              size: 20,
-                            ),
+                            Icon(_excedeLimite ? Icons.block_rounded : iconeBotao, size: 20),
                             const SizedBox(width: 10),
-                            Text(
-                              _excedeLimite
-                                  ? 'Pedido bloqueado'
-                                  : 'Criar Pedido • ${_subtotal.toStringAsFixed(2)} MT',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
+                            Expanded(
+                              child: Text(
+                                _excedeLimite ? 'Pedido bloqueado' : labelBotao,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 }
 
 // ─── Widgets auxiliares ───────────────────────────────────────────────────────

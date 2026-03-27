@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 import 'package:decimal/decimal.dart';
-
+import 'finalizar_pedido.dart';
 
 // ─── Paleta (partilhada) ──────────────────────────────────────────────────
 const _kBg = Color(0xFF0A0E1A);
@@ -186,16 +186,25 @@ class _PedidosPorFinalizarScreenState
               padding:
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
               itemCount: pendentes.length,
-              itemBuilder: (ctx, i) => _PedidoCard(
-                pedido: pendentes[i],
-                delay: i * 60,
-                onFinalizar: () =>
-                    _confirmarAcao(ctx, pendentes[i], acaao: 'finalizar'),
-                onCancelar: () =>
-                    _confirmarAcao(ctx, pendentes[i], acaao: 'cancelar'),
-                onRegistarPagamento: () =>
-                    _modalPagamento(ctx, pendentes[i]),
-              ),
+       itemBuilder: (ctx, i) => _PedidoCard(
+  pedido: pendentes[i],
+  delay: i * 60,
+  estaActivo: context.watch<PedidoProvider>().pedidoActivo?.idPedido == pendentes[i].idPedido,
+  onToggleActivacao: () => context.read<PedidoProvider>().toggleActivacao(pendentes[i]),
+  onFinalizar: () => Navigator.push(
+  ctx,
+  MaterialPageRoute(
+    builder: (_) => FinalizarPedidoScreen(pedido: pendentes[i]),
+  ),
+).then((finalizado) {
+  if (finalizado == true) {
+    context.read<PedidoProvider>().carregar(status: 'pendente');
+    _showSnack(context, 'Pedido finalizado com sucesso!', _kSuccess);
+  }
+}),
+  onCancelar: () => _confirmarAcao(ctx, pendentes[i], acaao: 'cancelar'),
+  onRegistarPagamento: () => _modalPagamento(ctx, pendentes[i]),
+),
             ),
           ),
         );
@@ -222,30 +231,31 @@ class _PedidosPorFinalizarScreenState
         pedido: pedido,
         finalizar: finalizar,
         onConfirmar: () async {
-          Navigator.pop(sheetCtx);
-          HapticFeedback.mediumImpact();
-          final prov = context.read<PedidoProvider>();
-          bool ok;
-          if (finalizar) {
-            ok = await prov.finalizar(pedido.idPedido);
-          } else {
-            final idUsuario = SessaoService.instance.idUsuario ?? 0;
-            ok = await prov.cancelar(
-              pedido.idPedido,
-              CancelamentoPedidoRequest(),
-              idUsuario,
-            );
-          }
-          if (ok && context.mounted) {
-            _showSnack(
-              context,
-              finalizar ? 'Pedido finalizado com sucesso!' : 'Pedido cancelado.',
-              finalizar ? _kSuccess : _kWarning,
-            );
-          } else if (prov.temErro && context.mounted) {
-            _showSnack(context, prov.erro ?? 'Erro', _kDanger);
-          }
-        },
+  Navigator.pop(sheetCtx);
+  HapticFeedback.mediumImpact();
+  final prov = context.read<PedidoProvider>();
+  bool ok;
+  if (finalizar) {
+    ok = await prov.finalizar(pedido.idPedido);
+  } else {
+    final idUsuario = SessaoService.instance.idUsuario ?? 0;
+    ok = await prov.cancelar(
+      pedido.idPedido,
+      CancelamentoPedidoRequest(),
+      idUsuario,
+    );
+  }
+  if (ok && context.mounted) {
+    _showSnack(
+      context,
+      finalizar ? 'Pedido finalizado com sucesso!' : 'Pedido cancelado.',
+      finalizar ? _kSuccess : _kWarning,
+    );
+    // ✗ NÃO chamar prov.carregar() aqui — o optimista já tratou
+  } else if (prov.temErro && context.mounted) {
+    _showSnack(context, prov.erro ?? 'Erro', _kDanger);
+  }
+},
       ),
     );
   }
@@ -297,6 +307,9 @@ class _PedidosPorFinalizarScreenState
 class _PedidoCard extends StatefulWidget {
   final PedidoModel pedido;
   final int delay;
+  final bool estaActivo;           // ← NOVO
+  final VoidCallback onToggleActivacao; // ← NOVO
+
   final VoidCallback onFinalizar;
   final VoidCallback onCancelar;
   final VoidCallback onRegistarPagamento;
@@ -306,6 +319,8 @@ class _PedidoCard extends StatefulWidget {
     this.delay = 0,
     required this.onFinalizar,
     required this.onCancelar,
+        required this.estaActivo,
+    required this.onToggleActivacao,
     required this.onRegistarPagamento,
   });
 
@@ -376,35 +391,59 @@ class _PedidoCardState extends State<_PedidoCard>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: _kWarning.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                'PENDENTE',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: _kWarning,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '#${p.idPedido}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: _kTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
+  children: [
+    // Status chip
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: _kWarning.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Text(
+        'PENDENTE',
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _kWarning, letterSpacing: 0.8),
+      ),
+    ),
+    const SizedBox(width: 8),
+    Text('#${p.idPedido}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _kTextSecondary)),
+    const Spacer(),
+    // ── Toggle de activação ──────────────────────────────────────────
+    GestureDetector(
+      onTap: widget.onToggleActivacao,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: widget.estaActivo ? _kAccent.withOpacity(0.15) : _kCard,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: widget.estaActivo ? _kAccent.withOpacity(0.5) : _kCardBorder,
+            width: widget.estaActivo ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              widget.estaActivo ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: widget.estaActivo ? _kAccent : _kTextSecondary,
+              size: 14,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              widget.estaActivo ? 'Activo' : 'Activar',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: widget.estaActivo ? _kAccent : _kTextSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ],
+),
                         const SizedBox(height: 4),
                         Text(
                           p.nomeCliente?.isNotEmpty == true

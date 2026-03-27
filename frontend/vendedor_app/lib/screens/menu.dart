@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 import 'detalhes_produto.dart';
+import '/widgets/app_sidebar.dart';
 
 // ─── Paleta & Tema ─────────────────────────────────────────────────────────
 const _kBg = Color(0xFF0A0E1A);
@@ -56,12 +57,14 @@ class _MenuScreenState extends State<MenuScreen>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+          drawer: const AppSidebar(),
         backgroundColor: _kBg,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
+              _buildBannerPedidoActivo(),
               _buildSearchBar(),
               const SizedBox(height: 8),
               Expanded(child: _buildBody()),
@@ -72,51 +75,140 @@ class _MenuScreenState extends State<MenuScreen>
     );
   }
 
+  Widget _buildBannerPedidoActivo() {
+  return Consumer<PedidoProvider>(
+    builder: (_, prov, __) {
+      final activo = prov.pedidoActivo;
+      if (activo == null) return const SizedBox.shrink();
+
+      return AnimatedSize(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+
+        
+        child: GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/pedidos-por-finalizar'),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_kAccent.withOpacity(0.15), _kAccent2.withOpacity(0.08)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _kAccent.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _kAccent.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.receipt_long_rounded, color: _kAccent, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pedido activo: #${activo.idPedido}',
+                        style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: _kAccent,
+                        ),
+                      ),
+                      Text(
+                        '${activo.itens.length} item(ns) · ${activo.total.toStringAsFixed(2)} MT',
+                        style: const TextStyle(fontSize: 11, color: _kTextSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => prov.desactivarPedido(),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: _kDanger.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.close_rounded, color: _kDanger, size: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
   // ── Header ────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Logo / título
-              Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_kAccent, _kAccent2],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+Widget _buildHeader(BuildContext context) {
+  return Container(
+    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // --- BOTÃO MENU + LOGO ---
+            Row(
+              children: [
+                // Botão para abrir o Drawer
+                Builder(
+                  builder: (innerContext) => GestureDetector(
+                    onTap: () => Scaffold.of(innerContext).openDrawer(),
+                    child: Container(
+                      width: 44, height: 44,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: _kCard,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _kCardBorder),
                       ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.water_drop_rounded,
-                        color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'AquaStore',
-                    style: TextStyle(
-                      fontFamily: 'Georgia',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: _kTextPrimary,
-                      letterSpacing: -0.5,
+                      child: const Icon(Icons.menu_rounded, color: _kTextSecondary, size: 20),
                     ),
                   ),
-                ],
-              ),
-              // Badge pedidos pendentes
-              _PedidosPendenteBadge(),
-            ],
-          ),
+                ),
+                
+                // Logo AquaStore
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_kAccent, _kAccent2],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.water_drop_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'AquaStore',
+                  style: TextStyle(
+                    fontFamily: 'Georgia', fontSize: 22,
+                    fontWeight: FontWeight.w700, color: _kTextPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+
+            // Badge pedidos pendentes
+            _PedidosPendenteBadge(),
+          ],
+        ),
           const SizedBox(height: 20),
           const Text(
             'Produtos\nDisponíveis',
@@ -525,15 +617,37 @@ class _StockBadge extends StatelessWidget {
 
 // ─── Badge de pedidos pendentes ─────────────────────────────────────────────
 
-class _PedidosPendenteBadge extends StatelessWidget {
+
+class _PedidosPendenteBadge extends StatefulWidget {
+  @override
+  State<_PedidosPendenteBadge> createState() => _PedidosPendenteBadgeState();
+}
+
+class _PedidosPendenteBadgeState extends State<_PedidosPendenteBadge> {
+  @override
+  void initState() {
+    super.initState();
+    // Carrega pedidos pendentes assim que o badge aparece, sem bloquear a UI
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<PedidoProvider>().carregar(status: 'pendente');
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/pedidos-por-finalizar'),
+      onTap: () async {
+        await Navigator.pushNamed(context, '/pedidos-por-finalizar');
+        // Ao voltar, recarrega para reflectir alterações feitas lá dentro
+        if (mounted) {
+          context.read<PedidoProvider>().carregar(status: 'pendente');
+        }
+      },
       child: Consumer<PedidoProvider>(
         builder: (_, prov, __) {
-          final pendentes =
-              prov.pedidos.where((p) => p.isPendente).length;
+          final pendentes = prov.pedidos.where((p) => p.isPendente).length;
           return Stack(
             clipBehavior: Clip.none,
             children: [
@@ -575,6 +689,8 @@ class _PedidosPendenteBadge extends StatelessWidget {
     );
   }
 }
+
+
 
 // ─── Estados especiais ───────────────────────────────────────────────────────
 
