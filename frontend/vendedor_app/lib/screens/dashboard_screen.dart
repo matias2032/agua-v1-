@@ -104,7 +104,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     setState(() { _carregando = true; _erro = null; });
     try {
       final prov = context.read<PedidoProvider>();
-      // Carrega todos os finalizados (sem paginação pesada; ajustar se necessário)
       await prov.carregar(status: 'finalizado');
       if (mounted) {
         setState(() {
@@ -135,16 +134,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     final lista = _pedidosFiltrados;
     if (lista.isEmpty) return _Metricas.zero();
 
-    var receitaTotal     = Decimal.zero;
-    var receitaCompras   = Decimal.zero;
-    var receitaReench    = Decimal.zero;
-    var nCompras         = 0;
-    var nReench          = 0;
+    var receitaTotal   = Decimal.zero;
+    var receitaCompras = Decimal.zero;
+    var receitaReench  = Decimal.zero;
+    var nCompras       = 0;
+    var nReench        = 0;
 
     for (final p in lista) {
       receitaTotal += p.total;
       for (final item in p.itens) {
-        // idOperacao 1 = compra, 2 = reenchimento
         if (item.idOperacao == 1) {
           receitaCompras += item.subtotal ?? Decimal.zero;
           nCompras++;
@@ -156,7 +154,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     final ticket = lista.isNotEmpty
-        ? (receitaTotal / Decimal.fromInt(lista.length)).toDecimal(scaleOnInfinitePrecision: 2)
+        ? (receitaTotal / Decimal.fromInt(lista.length))
+            .toDecimal(scaleOnInfinitePrecision: 2)
         : Decimal.zero;
 
     return _Metricas(
@@ -197,67 +196,64 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // ── Header ────────────────────────────────────────────────────────────────
 
- Widget _buildHeader() {
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
-    child: Row(
-      children: [
-        // --- BOTÃO DO MENU ---
-        Builder(
-          builder: (context) => GestureDetector(
-            onTap: () => Scaffold.of(context).openDrawer(),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+      child: Row(
+        children: [
+          Builder(
+            builder: (context) => GestureDetector(
+              onTap: () => Scaffold.of(context).openDrawer(),
+              child: Container(
+                width: 44, height: 44,
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: _kCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kCardBorder),
+                ),
+                child: const Icon(Icons.menu_rounded,
+                    color: _kTextSecondary, size: 20),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Dashboard',
+                    style: TextStyle(
+                      fontFamily: 'Georgia', fontSize: 26,
+                      fontWeight: FontWeight.w700, color: _kTextPrimary,
+                      letterSpacing: -0.6,
+                    )),
+                const Text('Vendas finalizadas',
+                    style: TextStyle(fontSize: 13, color: _kTextSecondary)),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: _carregar,
             child: Container(
-              width: 44, height: 44,
-              margin: const EdgeInsets.only(right: 16),
+              width: 40, height: 40,
               decoration: BoxDecoration(
                 color: _kCard,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _kCardBorder),
               ),
-              child: const Icon(Icons.menu_rounded, color: _kTextSecondary, size: 20),
+              child: _carregando
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: CircularProgressIndicator(
+                          color: _kAccent, strokeWidth: 2))
+                  : const Icon(Icons.refresh_rounded,
+                      color: _kTextSecondary, size: 18),
             ),
           ),
-        ),
-        
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Dashboard',
-                  style: TextStyle(
-                    fontFamily: 'Georgia', fontSize: 26,
-                    fontWeight: FontWeight.w700, color: _kTextPrimary,
-                    letterSpacing: -0.6,
-                  )),
-              const Text('Vendas finalizadas',
-                  style: TextStyle(fontSize: 13, color: _kTextSecondary)),
-            ],
-          ),
-        ),
-        
-        // --- BOTÃO DE REFRESH ---
-        GestureDetector(
-          onTap: _carregar,
-          child: Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: _kCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _kCardBorder),
-            ),
-            child: _carregando
-                ? const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: CircularProgressIndicator(
-                        color: _kAccent, strokeWidth: 2))
-                : const Icon(Icons.refresh_rounded,
-                    color: _kTextSecondary, size: 18),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   // ── Selector de período ───────────────────────────────────────────────────
 
@@ -309,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildBody() {
     if (_carregando && _pedidosFinalizados.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2));
+          child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2));
     }
 
     if (_erro != null) {
@@ -319,7 +315,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             const Icon(Icons.wifi_off_rounded, color: _kDanger, size: 40),
             const SizedBox(height: 12),
-            Text(_erro!, style: const TextStyle(color: _kTextSecondary),
+            Text(_erro!,
+                style: const TextStyle(color: _kTextSecondary),
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -370,10 +367,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
             // ── Breakdown compras vs reenchimentos ──────────────────────
             _BreakdownCard(metricas: m),
-            const SizedBox(height: 16),
-
-            // ── Lista dos últimos pedidos ────────────────────────────────
-            _UltimosPedidos(pedidos: _pedidosFiltrados),
           ],
         ),
       ),
@@ -400,8 +393,10 @@ class _KpiPrincipal extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _kAccent.withOpacity(0.2)),
         boxShadow: [
-          BoxShadow(color: _kAccent.withOpacity(0.08),
-              blurRadius: 24, offset: const Offset(0, 8)),
+          BoxShadow(
+              color: _kAccent.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
@@ -416,8 +411,11 @@ class _KpiPrincipal extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text('RECEITA TOTAL',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800,
-                        color: _kSuccess, letterSpacing: 1)),
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: _kSuccess,
+                        letterSpacing: 1)),
               ),
             ],
           ),
@@ -425,8 +423,10 @@ class _KpiPrincipal extends StatelessWidget {
           Text(
             '${metricas.totalReceita.toStringAsFixed(2)} MT',
             style: const TextStyle(
-              fontFamily: 'Georgia', fontSize: 34,
-              fontWeight: FontWeight.w700, color: _kTextPrimary,
+              fontFamily: 'Georgia',
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              color: _kTextPrimary,
               letterSpacing: -1,
             ),
           ),
@@ -435,7 +435,6 @@ class _KpiPrincipal extends StatelessWidget {
             '${metricas.totalPedidos} pedido${metricas.totalPedidos != 1 ? 's' : ''} finalizados',
             style: const TextStyle(fontSize: 13, color: _kTextSecondary),
           ),
-          // Barra decorativa
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -453,11 +452,13 @@ class _KpiPrincipal extends StatelessWidget {
             children: [
               _Dot(_kAccent),
               const SizedBox(width: 4),
-              const Text('Compras', style: TextStyle(fontSize: 11, color: _kTextSecondary)),
+              const Text('Compras',
+                  style: TextStyle(fontSize: 11, color: _kTextSecondary)),
               const SizedBox(width: 12),
               _Dot(_kSuccess),
               const SizedBox(width: 4),
-              const Text('Reenchimentos', style: TextStyle(fontSize: 11, color: _kTextSecondary)),
+              const Text('Reenchimentos',
+                  style: TextStyle(fontSize: 11, color: _kTextSecondary)),
             ],
           ),
         ],
@@ -469,9 +470,11 @@ class _KpiPrincipal extends StatelessWidget {
 class _Dot extends StatelessWidget {
   final Color cor;
   const _Dot(this.cor);
+
   @override
   Widget build(BuildContext context) => Container(
-      width: 8, height: 8,
+      width: 8,
+      height: 8,
       decoration: BoxDecoration(color: cor, shape: BoxShape.circle));
 }
 
@@ -483,8 +486,12 @@ class _KpiCard extends StatelessWidget {
   final IconData icone;
   final Color cor;
 
-  const _KpiCard({required this.label, required this.valor,
-      required this.icone, required this.cor});
+  const _KpiCard({
+    required this.label,
+    required this.valor,
+    required this.icone,
+    required this.cor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -508,8 +515,11 @@ class _KpiCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(valor,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
-                  color: cor, letterSpacing: -0.5)),
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: cor,
+                  letterSpacing: -0.5)),
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(fontSize: 12, color: _kTextSecondary)),
@@ -546,11 +556,11 @@ class _BreakdownCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Vendas por tipo',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: _kTextPrimary)),
           const SizedBox(height: 16),
-
-          // ── Compras ──────────────────────────────────────────────────
           _BreakdownLinha(
             label: 'Compras',
             descricao: '${metricas.totalCompras} item(ns)',
@@ -560,8 +570,6 @@ class _BreakdownCard extends StatelessWidget {
             icone: Icons.shopping_bag_outlined,
           ),
           const SizedBox(height: 14),
-
-          // ── Reenchimentos ─────────────────────────────────────────────
           _BreakdownLinha(
             label: 'Reenchimentos',
             descricao: '${metricas.totalReenchimentos} item(ns)',
@@ -584,9 +592,14 @@ class _BreakdownLinha extends StatelessWidget {
   final Color cor;
   final IconData icone;
 
-  const _BreakdownLinha({required this.label, required this.descricao,
-      required this.receita, required this.pct, required this.cor,
-      required this.icone});
+  const _BreakdownLinha({
+    required this.label,
+    required this.descricao,
+    required this.receita,
+    required this.pct,
+    required this.cor,
+    required this.icone,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -607,11 +620,14 @@ class _BreakdownLinha extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700,
-                      color: _kTextPrimary)),
-                  Text(descricao, style: const TextStyle(
-                      fontSize: 11, color: _kTextSecondary)),
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _kTextPrimary)),
+                  Text(descricao,
+                      style: const TextStyle(
+                          fontSize: 11, color: _kTextSecondary)),
                 ],
               ),
             ),
@@ -619,8 +635,10 @@ class _BreakdownLinha extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text('${receita.toStringAsFixed(2)} MT',
-                    style: TextStyle(fontSize: 14,
-                        fontWeight: FontWeight.w700, color: cor)),
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: cor)),
                 Text('${(pct * 100).toStringAsFixed(1)}%',
                     style: const TextStyle(
                         fontSize: 11, color: _kTextSecondary)),
@@ -640,123 +658,5 @@ class _BreakdownLinha extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-// ─── Últimos Pedidos ──────────────────────────────────────────────────────────
-
-class _UltimosPedidos extends StatelessWidget {
-  final List<PedidoModel> pedidos;
-  const _UltimosPedidos({required this.pedidos});
-
-  @override
-  Widget build(BuildContext context) {
-    if (pedidos.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: const Center(
-          child: Column(
-            children: [
-              Icon(Icons.receipt_long_rounded,
-                  color: _kTextSecondary, size: 36),
-              SizedBox(height: 8),
-              Text('Sem pedidos neste período',
-                  style: TextStyle(color: _kTextSecondary, fontSize: 14)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final recentes = pedidos.take(10).toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kCardBorder),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              children: [
-                const Text('Últimas vendas',
-                    style: TextStyle(fontSize: 14,
-                        fontWeight: FontWeight.w700, color: _kTextPrimary)),
-                const Spacer(),
-                Text('${pedidos.length} total',
-                    style: const TextStyle(
-                        fontSize: 12, color: _kTextSecondary)),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: _kCardBorder),
-          ...recentes.asMap().entries.map((e) {
-            final i   = e.key;
-            final p   = e.value;
-            final ult = i == recentes.length - 1;
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 11),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34, height: 34,
-                        decoration: BoxDecoration(
-                          color: _kSuccess.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: const Icon(Icons.check_rounded,
-                            color: _kSuccess, size: 16),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p.nomeCliente?.isNotEmpty == true
-                                  ? p.nomeCliente!
-                                  : 'Cliente #${p.idPedido}',
-                              style: const TextStyle(fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _kTextPrimary),
-                            ),
-                            Text(_formatarData(p.dataPedido),
-                                style: const TextStyle(
-                                    fontSize: 11, color: _kTextSecondary)),
-                          ],
-                        ),
-                      ),
-                      Text('${p.total.toStringAsFixed(2)} MT',
-                          style: const TextStyle(fontSize: 13,
-                              fontWeight: FontWeight.w700, color: _kSuccess)),
-                    ],
-                  ),
-                ),
-                if (!ult) const Divider(height: 1, color: _kCardBorder),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  String _formatarData(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'agora';
-    if (diff.inHours < 1) return 'há ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'há ${diff.inHours} h';
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }

@@ -13,6 +13,9 @@ class PedidoModel {
 
   // Funcionário que registou o pedido (Regra 2)
   final int idUsuario;
+  final String? nomeUsuario;    // ← novo
+  final String? apelidoUsuario; // ← novo
+
   final int idOperacao;
   final String? nomeOperacao;
   final int idTipoPagamento;
@@ -45,6 +48,8 @@ class PedidoModel {
     this.telefoneCliente,
     this.emailCliente,
     required this.idUsuario,
+    this.nomeUsuario,
+    this.apelidoUsuario,
     required this.idOperacao,
     this.nomeOperacao,
     required this.idTipoPagamento,
@@ -64,38 +69,40 @@ class PedidoModel {
     this.itens = const [],
   });
 
-  bool get isPendente => statusPedido == 'pendente';
+  bool get isPendente   => statusPedido == 'pendente';
   bool get isFinalizado => statusPedido == 'finalizado';
-  bool get isCancelado => statusPedido == 'cancelado';
+  bool get isCancelado  => statusPedido == 'cancelado';
 
   factory PedidoModel.fromJson(Map<String, dynamic> json) {
     return PedidoModel(
-      idPedido: json['idPedido'] as int,
-      reference: json['reference'] as String?,
-      nomeCliente: json['nomeCliente'] as String?,
-      telefoneCliente: json['telefoneCliente'] as String?,
-      emailCliente: json['emailCliente'] as String?,
-      idUsuario: json['idUsuario'] as int,
-      idOperacao: json['idOperacao'] as int,
-      nomeOperacao: json['nomeOperacao'] as String?,
-      idTipoPagamento: json['idTipoPagamento'] as int,
+      idPedido:          json['idPedido'] as int,
+      reference:         json['reference'] as String?,
+      nomeCliente:       json['nomeCliente'] as String?,
+      telefoneCliente:   json['telefoneCliente'] as String?,
+      emailCliente:      json['emailCliente'] as String?,
+      idUsuario:         json['idUsuario'] as int,
+      nomeUsuario:       json['nomeUsuario'] as String?,      // ← novo
+      apelidoUsuario:    json['apelidoUsuario'] as String?,   // ← novo
+      idOperacao:        json['idOperacao'] as int,
+      nomeOperacao:      json['nomeOperacao'] as String?,
+      idTipoPagamento:   json['idTipoPagamento'] as int,
       nomeTipoPagamento: json['nomeTipoPagamento'] as String?,
-      dataPedido: DateTime.parse(json['dataPedido'] as String),
-      dataFinalizacao: json['dataFinalizacao'] != null
+      dataPedido:        DateTime.parse(json['dataPedido'] as String),
+      dataFinalizacao:   json['dataFinalizacao'] != null
           ? DateTime.parse(json['dataFinalizacao'] as String)
           : null,
-      statusPedido: json['statusPedido'] as String,
-      total: Decimal.parse(json['total'].toString()),
-      valorPago: Decimal.parse(json['valorPago'].toString()),
-      troco: json['troco'] != null
+      statusPedido:      json['statusPedido'] as String,
+      total:             Decimal.parse(json['total'].toString()),
+      valorPago:         Decimal.parse(json['valorPago'].toString()),
+      troco:             json['troco'] != null
           ? Decimal.parse(json['troco'].toString())
           : null,
-      endereco: json['endereco'] as String?,
-      bairro: json['bairro'] as String?,
-      pontoReferencia: json['pontoReferencia'] as String?,
-      notificacaoVista: json['notificacaoVista'] as bool? ?? false,
-      ocultoCliente: json['ocultoCliente'] as bool? ?? false,
-      observacao: json['observacao'] as String?,
+      endereco:          json['endereco'] as String?,
+      bairro:            json['bairro'] as String?,
+      pontoReferencia:   json['pontoReferencia'] as String?,
+      notificacaoVista:  json['notificacaoVista'] as bool? ?? false,
+      ocultoCliente:     json['ocultoCliente'] as bool? ?? false,
+      observacao:        json['observacao'] as String?,
       itens: (json['itens'] as List<dynamic>? ?? [])
           .map((e) => ItemPedidoModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -103,29 +110,31 @@ class PedidoModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'idPedido': idPedido,
-        'reference': reference,
-        'nomeCliente': nomeCliente,
-        'telefoneCliente': telefoneCliente,
-        'emailCliente': emailCliente,
-        'idUsuario': idUsuario,
-        'idOperacao': idOperacao,
-        'nomeOperacao': nomeOperacao,
-        'idTipoPagamento': idTipoPagamento,
+        'idPedido':          idPedido,
+        'reference':         reference,
+        'nomeCliente':       nomeCliente,
+        'telefoneCliente':   telefoneCliente,
+        'emailCliente':      emailCliente,
+        'idUsuario':         idUsuario,
+        'nomeUsuario':       nomeUsuario,
+        'apelidoUsuario':    apelidoUsuario,
+        'idOperacao':        idOperacao,
+        'nomeOperacao':      nomeOperacao,
+        'idTipoPagamento':   idTipoPagamento,
         'nomeTipoPagamento': nomeTipoPagamento,
-        'dataPedido': dataPedido.toIso8601String(),
-        'dataFinalizacao': dataFinalizacao?.toIso8601String(),
-        'statusPedido': statusPedido,
-        'total': total.toString(),
-        'valorPago': valorPago.toString(),
-        'troco': troco?.toString(),
-        'endereco': endereco,
-        'bairro': bairro,
-        'pontoReferencia': pontoReferencia,
-        'notificacaoVista': notificacaoVista,
-        'ocultoCliente': ocultoCliente,
-        'observacao': observacao,
-        'itens': itens.map((e) => e.toJson()).toList(),
+        'dataPedido':        dataPedido.toIso8601String(),
+        'dataFinalizacao':   dataFinalizacao?.toIso8601String(),
+        'statusPedido':      statusPedido,
+        'total':             total.toString(),
+        'valorPago':         valorPago.toString(),
+        'troco':             troco?.toString(),
+        'endereco':          endereco,
+        'bairro':            bairro,
+        'pontoReferencia':   pontoReferencia,
+        'notificacaoVista':  notificacaoVista,
+        'ocultoCliente':     ocultoCliente,
+        'observacao':        observacao,
+        'itens':             itens.map((e) => e.toJson()).toList(),
       };
 
   PedidoModel copyWith({
@@ -135,6 +144,8 @@ class PedidoModel {
     String? telefoneCliente,
     String? emailCliente,
     int? idUsuario,
+    String? nomeUsuario,
+    String? apelidoUsuario,
     int? idOperacao,
     String? nomeOperacao,
     int? idTipoPagamento,
@@ -154,29 +165,31 @@ class PedidoModel {
     List<ItemPedidoModel>? itens,
   }) {
     return PedidoModel(
-      idPedido: idPedido ?? this.idPedido,
-      reference: reference ?? this.reference,
-      nomeCliente: nomeCliente ?? this.nomeCliente,
-      telefoneCliente: telefoneCliente ?? this.telefoneCliente,
-      emailCliente: emailCliente ?? this.emailCliente,
-      idUsuario: idUsuario ?? this.idUsuario,
-      idOperacao: idOperacao ?? this.idOperacao,
-      nomeOperacao: nomeOperacao ?? this.nomeOperacao,
-      idTipoPagamento: idTipoPagamento ?? this.idTipoPagamento,
+      idPedido:          idPedido          ?? this.idPedido,
+      reference:         reference         ?? this.reference,
+      nomeCliente:       nomeCliente       ?? this.nomeCliente,
+      telefoneCliente:   telefoneCliente   ?? this.telefoneCliente,
+      emailCliente:      emailCliente      ?? this.emailCliente,
+      idUsuario:         idUsuario         ?? this.idUsuario,
+      nomeUsuario:       nomeUsuario       ?? this.nomeUsuario,
+      apelidoUsuario:    apelidoUsuario    ?? this.apelidoUsuario,
+      idOperacao:        idOperacao        ?? this.idOperacao,
+      nomeOperacao:      nomeOperacao      ?? this.nomeOperacao,
+      idTipoPagamento:   idTipoPagamento   ?? this.idTipoPagamento,
       nomeTipoPagamento: nomeTipoPagamento ?? this.nomeTipoPagamento,
-      dataPedido: dataPedido ?? this.dataPedido,
-      dataFinalizacao: dataFinalizacao ?? this.dataFinalizacao,
-      statusPedido: statusPedido ?? this.statusPedido,
-      total: total ?? this.total,
-      valorPago: valorPago ?? this.valorPago,
-      troco: troco ?? this.troco,
-      endereco: endereco ?? this.endereco,
-      bairro: bairro ?? this.bairro,
-      pontoReferencia: pontoReferencia ?? this.pontoReferencia,
-      notificacaoVista: notificacaoVista ?? this.notificacaoVista,
-      ocultoCliente: ocultoCliente ?? this.ocultoCliente,
-      observacao: observacao ?? this.observacao,
-      itens: itens ?? this.itens,
+      dataPedido:        dataPedido        ?? this.dataPedido,
+      dataFinalizacao:   dataFinalizacao   ?? this.dataFinalizacao,
+      statusPedido:      statusPedido      ?? this.statusPedido,
+      total:             total             ?? this.total,
+      valorPago:         valorPago         ?? this.valorPago,
+      troco:             troco             ?? this.troco,
+      endereco:          endereco          ?? this.endereco,
+      bairro:            bairro            ?? this.bairro,
+      pontoReferencia:   pontoReferencia   ?? this.pontoReferencia,
+      notificacaoVista:  notificacaoVista  ?? this.notificacaoVista,
+      ocultoCliente:     ocultoCliente     ?? this.ocultoCliente,
+      observacao:        observacao        ?? this.observacao,
+      itens:             itens             ?? this.itens,
     );
   }
 
@@ -214,14 +227,14 @@ class ItemPedidoModel {
 
   factory ItemPedidoModel.fromJson(Map<String, dynamic> json) {
     return ItemPedidoModel(
-      idItemPedido: json['idItemPedido'] as int,
-      idProduto: json['idProduto'] as int,
-      nomeProduto: json['nomeProduto'] as String?,
-      idOperacao: json['idOperacao'] as int,
-      nomeOperacao: json['nomeOperacao'] as String?,
-      quantidade: json['quantidade'] as int,
-      litrosConsumidos: Decimal.parse(json['litrosConsumidos'].toString()),
-      precoUnitario: Decimal.parse(json['precoUnitario'].toString()),
+      idItemPedido:      json['idItemPedido'] as int,
+      idProduto:         json['idProduto'] as int,
+      nomeProduto:       json['nomeProduto'] as String?,
+      idOperacao:        json['idOperacao'] as int,
+      nomeOperacao:      json['nomeOperacao'] as String?,
+      quantidade:        json['quantidade'] as int,
+      litrosConsumidos:  Decimal.parse(json['litrosConsumidos'].toString()),
+      precoUnitario:     Decimal.parse(json['precoUnitario'].toString()),
       subtotal: json['subtotal'] != null
           ? Decimal.parse(json['subtotal'].toString())
           : null,
@@ -229,15 +242,15 @@ class ItemPedidoModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'idItemPedido': idItemPedido,
-        'idProduto': idProduto,
-        'nomeProduto': nomeProduto,
-        'idOperacao': idOperacao,
-        'nomeOperacao': nomeOperacao,
-        'quantidade': quantidade,
+        'idItemPedido':     idItemPedido,
+        'idProduto':        idProduto,
+        'nomeProduto':      nomeProduto,
+        'idOperacao':       idOperacao,
+        'nomeOperacao':     nomeOperacao,
+        'quantidade':       quantidade,
         'litrosConsumidos': litrosConsumidos.toString(),
-        'precoUnitario': precoUnitario.toString(),
-        'subtotal': subtotal?.toString(),
+        'precoUnitario':    precoUnitario.toString(),
+        'subtotal':         subtotal?.toString(),
       };
 
   @override

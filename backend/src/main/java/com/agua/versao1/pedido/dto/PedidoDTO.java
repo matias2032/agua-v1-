@@ -102,6 +102,9 @@ public class PedidoDTO {
         private Boolean notificacaoVista;
         private Boolean ocultoCliente;
         private String observacao;
+        private String nomeUsuario;
+        private String apelidoUsuario;
+
 
         private List<ItemResponse> itens;
     }

@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.agua.versao1.usuario.repository.UsuarioRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,6 +35,7 @@ public class PedidoService {
     private final ProdutoRepository produtoRepository;
     private final OperacaoRepository operacaoRepository;
     private final EstoqueAguaRepository estoqueRepository;
+    private final UsuarioRepository usuarioRepository;
 
     // ─── Criar pedido ─────────────────────────────────────────────────────────
 
@@ -341,12 +343,23 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
 
     // ─── Auxiliares ──────────────────────────────────────────────────────────
 
-    private PedidoDTO.Response toResponse(
+private PedidoDTO.Response toResponse(
             Pedido pedido,
             List<ItemPedido> itens,
             Operacao operacaoPedido,
             String nomeTipoPagamento) {
-
+ 
+        // Resolver nome + apelido do operador
+        String nomeUsuario    = null;
+        String apelidoUsuario = null;
+        if (pedido.getIdUsuario() != null) {
+            var usuario = usuarioRepository.findById(pedido.getIdUsuario()).orElse(null);
+            if (usuario != null) {
+                nomeUsuario    = usuario.getNome();
+                apelidoUsuario = usuario.getApelido();
+            }
+        }
+ 
         List<PedidoDTO.ItemResponse> itensResponse = itens.stream()
                 .map(item -> PedidoDTO.ItemResponse.builder()
                         .idItemPedido(item.getIdItemPedido())
@@ -358,7 +371,7 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
                         .subtotal(item.getSubtotal())
                         .build())
                 .toList();
-
+ 
         return PedidoDTO.Response.builder()
                 .idPedido(pedido.getIdPedido())
                 .reference(pedido.getReference())
@@ -366,6 +379,8 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
                 .telefoneCliente(pedido.getTelefoneCliente())
                 .emailCliente(pedido.getEmailCliente())
                 .idUsuario(pedido.getIdUsuario())
+                .nomeUsuario(nomeUsuario)        // ← novo
+                .apelidoUsuario(apelidoUsuario)  // ← novo
                 .idOperacao(pedido.getIdOperacao())
                 .nomeOperacao(operacaoPedido != null ? operacaoPedido.getNomeOperacao() : null)
                 .idTipoPagamento(pedido.getIdTipoPagamento())
@@ -385,6 +400,7 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
                 .itens(itensResponse)
                 .build();
     }
+
 
     // Record interno para transporte de dados durante a criação
     private record ItemResolucao(

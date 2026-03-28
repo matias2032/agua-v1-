@@ -50,6 +50,13 @@ const _kNavItems = [
     rota: '/estoque',
     corActiva: _kAccent,
   ),
+
+    _NavItem(
+    icone: Icons.water_drop_rounded,
+    label: 'Historico de pedidos',
+    rota: '/historico_pedidos',
+    corActiva: _kAccent,
+  ),
   _NavItem(
     icone: Icons.inventory_2_rounded,
     label: 'Produtos',

@@ -23,6 +23,7 @@ import 'screens/pedidos_por_finalizar.dart';
 import 'screens/estoque_dashboard_screen.dart';
 import 'screens/movimentos_estoque_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/historico_pedidos_screen.dart';
 
 // ─── Auth ──────────────────────────────────────────────────
 import 'screens/login_screen.dart';
@@ -180,6 +181,13 @@ case '/dashboard':
     builder: (_) => const DashboardScreen(),
     settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
   );
+
+  case '/historico_pedidos':
+  return MaterialPageRoute(
+    builder: (_) => const HistoricoPedidosScreen(),
+    settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
+  );
+
 
           default:
             return null;
