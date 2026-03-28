@@ -25,6 +25,8 @@ export 'services/servico_autenticacao.dart';
 export 'services/pedido_service.dart';
 export 'services/estoque_service.dart';
 export 'services/produto_service.dart';
+export 'services/impressora_service.dart';
+export 'services/pdf_service.dart';
 
 // 4. Exceptions
 export 'exceptions/produto_exceptions.dart';

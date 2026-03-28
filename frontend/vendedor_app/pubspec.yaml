@@ -11,6 +11,11 @@ dependencies:
   flutter:
     sdk: flutter
 
+  pdf: ^3.11.0
+  printing: ^5.11.0
+  open_file: ^3.3.2
+  
+
   api_compartilhado:
     path: ../../api_compartilhado
   decimal: ^2.3.3  
@@ -22,6 +27,8 @@ dependencies:
   desktop_drop: ^0.4.4  
   cross_file: ^0.3.3+8  
   fl_chart: ^1.1.1
+  file_picker: ^10.3.7
+  path_provider: ^2.1.3
 
   # Networking
   dio: ^5.4.0

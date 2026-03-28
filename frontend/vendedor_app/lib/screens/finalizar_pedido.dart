@@ -727,41 +727,128 @@ class _Pill extends StatelessWidget {
 
 // ─── Diálogo de sucesso ───────────────────────────────────────────────────────
 
+ 
 class _SucessoDialog extends StatefulWidget {
   final PedidoModel pedido;
   final _TipoPagamento metodo;
   final Decimal troco;
   final VoidCallback onContinuar;
-
-  const _SucessoDialog({required this.pedido, required this.metodo,
-      required this.troco, required this.onContinuar});
-
+ 
+  const _SucessoDialog({
+    required this.pedido,
+    required this.metodo,
+    required this.troco,
+    required this.onContinuar,
+  });
+ 
   @override
   State<_SucessoDialog> createState() => _SucessoDialogState();
 }
-
+ 
 class _SucessoDialogState extends State<_SucessoDialog>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _fadeAnim;
-
+ 
+  bool _imprimindo = false;
+  String? _erroImpressao;
+  bool _impressaoOk = false;
+ 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _scaleAnim = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
     _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
   }
-
+ 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+ 
+  // ── Lógica de impressão ─────────────────────────────────────────────────
+ 
+  String get _tipoPagamento => widget.metodo.nome;
+ 
+Future<void> _imprimir() async {
+  setState(() {
+    _imprimindo    = true;
+    _erroImpressao = null;
+    _impressaoOk   = false;
+  });
 
+  try {
+    final pdfService       = PdfService.instance;
+    final impressoraService = ImpressoraService.instance;
+
+    // 1. Verifica se existe impressora guardada (devolve String?)
+    final impressoraNome = await impressoraService.lerImpressoraPadrao();
+
+    if (impressoraNome != null && impressoraNome.isNotEmpty) {
+      // 2a. Impressão silenciosa via SumatraPDF com a impressora guardada
+      await pdfService.imprimirViaSumatra(
+        pedido:          widget.pedido,
+        tipoPagamento:   _tipoPagamento,
+        impressoraNome:  impressoraNome,
+        nomeCliente:     widget.pedido.nomeCliente,
+        telefoneCliente: widget.pedido.telefoneCliente,
+        paperFormat:     PaperFormat.thermal80mm,
+      );
+    } else {
+      // 2b. Sem impressora guardada → abre o diálogo do SumatraPDF
+      await pdfService.imprimirComprovativo(
+        pedido:          widget.pedido,
+        tipoPagamento:   _tipoPagamento,
+        nomeCliente:     widget.pedido.nomeCliente,
+        telefoneCliente: widget.pedido.telefoneCliente,
+        paperFormat:     PaperFormat.thermal80mm,
+      );
+    }
+
+    if (mounted) setState(() => _impressaoOk = true);
+  } catch (e) {
+    if (mounted) setState(() => _erroImpressao = e.toString());
+  } finally {
+    if (mounted) setState(() => _imprimindo = false);
+  }
+}
+ 
+  Future<void> _gerarPdfA4() async {
+    setState(() {
+      _imprimindo    = true;
+      _erroImpressao = null;
+    });
+ 
+    try {
+      final pdfService = PdfService.instance;
+      final file = await pdfService.gerarComprovativo(
+        pedido:         widget.pedido,
+        tipoPagamento:  _tipoPagamento,
+        nomeCliente:    widget.pedido.nomeCliente,
+        telefoneCliente: widget.pedido.telefoneCliente,
+        paperFormat:    PaperFormat.a4,
+      );
+      await pdfService.abrirPdf(file);
+    } catch (e) {
+      if (mounted) setState(() => _erroImpressao = e.toString());
+    } finally {
+      if (mounted) setState(() => _imprimindo = false);
+    }
+  }
+ 
+  // ── Build ───────────────────────────────────────────────────────────────
+ 
   @override
   Widget build(BuildContext context) {
     final p = widget.pedido;
+ 
     return Dialog(
       backgroundColor: _kCard,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -772,6 +859,7 @@ class _SucessoDialogState extends State<_SucessoDialog>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // ── Ícone de sucesso ──────────────────────────────────────
               ScaleTransition(
                 scale: _scaleAnim,
                 child: Container(
@@ -779,25 +867,46 @@ class _SucessoDialogState extends State<_SucessoDialog>
                   decoration: BoxDecoration(
                     color: _kSuccess.withOpacity(0.15),
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: _kSuccess.withOpacity(0.28),
-                        blurRadius: 20, spreadRadius: 3)],
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kSuccess.withOpacity(0.28),
+                        blurRadius: 20,
+                        spreadRadius: 3,
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.check_rounded,
-                      color: _kSuccess, size: 32),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: _kSuccess,
+                    size: 32,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Pedido Finalizado!',
-                  style: TextStyle(fontFamily: 'Georgia', fontSize: 21,
-                      fontWeight: FontWeight.w700, color: _kTextPrimary,
-                      letterSpacing: -0.4)),
+ 
+              const Text(
+                'Pedido Finalizado!',
+                style: TextStyle(
+                  fontFamily: 'Georgia',
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  color: _kTextPrimary,
+                  letterSpacing: -0.4,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Pedido #${p.idPedido} concluído com sucesso.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13,
-                      color: _kTextSecondary, height: 1.5)),
+              Text(
+                'Pedido #${p.idPedido} concluído com sucesso.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: _kTextSecondary,
+                  height: 1.5,
+                ),
+              ),
               const SizedBox(height: 18),
-
+ 
+              // ── Resumo ────────────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
@@ -810,41 +919,164 @@ class _SucessoDialogState extends State<_SucessoDialog>
                     _LinhaResumo(
                       rotulo: 'Cliente',
                       valor: p.nomeCliente?.isNotEmpty == true
-                          ? p.nomeCliente! : 'Não identificado',
+                          ? p.nomeCliente!
+                          : 'Não identificado',
                     ),
                     const SizedBox(height: 7),
-                    _LinhaResumo(rotulo: 'Total',
-                        valor: '${p.total.toStringAsFixed(2)} MT',
-                        corValor: _kAccent),
+                    _LinhaResumo(
+                      rotulo: 'Total',
+                      valor: '${p.total.toStringAsFixed(2)} MT',
+                      corValor: _kAccent,
+                    ),
                     const SizedBox(height: 7),
-                    _LinhaResumo(rotulo: 'Pagamento',
-                        valor: widget.metodo.nome,
-                        icone: widget.metodo.icone,
-                        corValor: widget.metodo.cor),
+                    _LinhaResumo(
+                      rotulo: 'Pagamento',
+                      valor: widget.metodo.nome,
+                      icone: widget.metodo.icone,
+                      corValor: widget.metodo.cor,
+                    ),
                     if (widget.troco > Decimal.zero) ...[
                       const SizedBox(height: 7),
-                      _LinhaResumo(rotulo: 'Troco',
-                          valor: '${widget.troco.toStringAsFixed(2)} MT',
-                          corValor: _kSuccess,
-                          icone: Icons.currency_exchange_rounded),
+                      _LinhaResumo(
+                        rotulo: 'Troco',
+                        valor: '${widget.troco.toStringAsFixed(2)} MT',
+                        corValor: _kSuccess,
+                        icone: Icons.currency_exchange_rounded,
+                      ),
                     ],
                   ],
                 ),
               ),
-
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+ 
+              // ── Feedback de impressão ─────────────────────────────────
+              AnimatedSize(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                child: _erroImpressao != null
+                    ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: _kDanger.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _kDanger.withOpacity(0.22),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: _kDanger,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _erroImpressao!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _kDanger,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _impressaoOk
+                        ? Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: _kSuccess.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: _kSuccess.withOpacity(0.22),
+                              ),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.print_rounded,
+                                  color: _kSuccess,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Comprovativo enviado para impressão.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _kSuccess,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+              ),
+ 
+              // ── Botões de impressão ───────────────────────────────────
+              Row(
+                children: [
+                  // Imprimir (80mm / impressora guardada)
+                  Expanded(
+                    child: _BotaoAcao(
+                      icone: _imprimindo && !_impressaoOk
+                          ? null
+                          : Icons.print_rounded,
+                      rotulo: '80mm',
+                      cor: _kAccent,
+                      carregando: _imprimindo,
+                      onTap: _imprimindo ? null : _imprimir,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Gerar PDF A4
+                  Expanded(
+                    child: _BotaoAcao(
+                      icone: Icons.picture_as_pdf_rounded,
+                      rotulo: 'PDF A4',
+                      cor: _kWarning,
+                      carregando: false,
+                      onTap: _imprimindo ? null : _gerarPdfA4,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+ 
+              // ── Continuar ─────────────────────────────────────────────
               SizedBox(
-                width: double.infinity, height: 50,
+                width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: widget.onContinuar,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _kSuccess, foregroundColor: _kBg,
+                    backgroundColor: _kSuccess,
+                    foregroundColor: _kBg,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13)),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
                   ),
-                  child: const Text('Continuar',
-                      style: TextStyle(fontSize: 15,
-                          fontWeight: FontWeight.w700)),
+                  child: const Text(
+                    'Continuar',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -854,7 +1086,71 @@ class _SucessoDialogState extends State<_SucessoDialog>
     );
   }
 }
-
+ 
+// ─── Botão de acção pequeno ───────────────────────────────────────────────────
+ 
+class _BotaoAcao extends StatelessWidget {
+  final IconData? icone;
+  final String rotulo;
+  final Color cor;
+  final bool carregando;
+  final VoidCallback? onTap;
+ 
+  const _BotaoAcao({
+    required this.icone,
+    required this.rotulo,
+    required this.cor,
+    required this.carregando,
+    required this.onTap,
+  });
+ 
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 44,
+        decoration: BoxDecoration(
+          color: cor.withOpacity(onTap != null ? 0.1 : 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: cor.withOpacity(onTap != null ? 0.4 : 0.15),
+          ),
+        ),
+        child: Center(
+          child: carregando
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: cor,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icone != null) ...[
+                      Icon(icone, color: cor, size: 15),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      rotulo,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: cor,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+ 
 class _LinhaResumo extends StatelessWidget {
   final String rotulo;
   final String valor;

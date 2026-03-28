@@ -24,6 +24,7 @@ import 'screens/estoque_dashboard_screen.dart';
 import 'screens/movimentos_estoque_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/historico_pedidos_screen.dart';
+import 'screens/configuracoes_impressora_screen.dart';
 
 // ─── Auth ──────────────────────────────────────────────────
 import 'screens/login_screen.dart';
@@ -187,6 +188,13 @@ case '/dashboard':
     builder: (_) => const HistoricoPedidosScreen(),
     settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
   );
+
+    case '/configuracoes_impressora':
+  return MaterialPageRoute(
+    builder: (_) => const ConfiguracoesImpressoraScreen(),
+    settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
+  );
+
 
 
           default:
