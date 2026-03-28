@@ -19,6 +19,12 @@ const _kWarning       = Color(0xFFFFB800);
 const _kDanger        = Color(0xFFFF4D6A);
 const _kPurple        = Color(0xFF9B6DFF);
 
+// Paleta rotativa para avatares de operadores
+const _kAvatarCores = [
+  _kAccent, _kPurple, _kSuccess, _kWarning,
+  Color(0xFFFF6B9D), Color(0xFFFFAA40),
+];
+
 // ─── Períodos ─────────────────────────────────────────────────────────────────
 
 enum _Periodo {
@@ -34,7 +40,7 @@ enum _Periodo {
   const _Periodo(this.label, this.dias);
 }
 
-// ─── Modelo de métricas calculadas ───────────────────────────────────────────
+// ─── Modelo de métricas globais ───────────────────────────────────────────────
 
 class _Metricas {
   final int totalPedidos;
@@ -64,6 +70,24 @@ class _Metricas {
         receitaReenchimentos: Decimal.zero,
         ticketMedio: Decimal.zero,
       );
+}
+
+// ─── Modelo de desempenho por operador ───────────────────────────────────────
+
+class _DesempenhoOperador {
+  final int idUsuario;
+  final String nome;
+  final int totalPedidos;
+  final Decimal totalReceita;
+  final Decimal ticketMedio;
+
+  const _DesempenhoOperador({
+    required this.idUsuario,
+    required this.nome,
+    required this.totalPedidos,
+    required this.totalReceita,
+    required this.ticketMedio,
+  });
 }
 
 // ─── Tela principal ───────────────────────────────────────────────────────────
@@ -128,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         .toList();
   }
 
-  // ── Cálculo de métricas ──────────────────────────────────────────────────
+  // ── Cálculo de métricas globais ──────────────────────────────────────────
 
   _Metricas get _metricas {
     final lista = _pedidosFiltrados;
@@ -167,6 +191,49 @@ class _DashboardScreenState extends State<DashboardScreen>
       receitaReenchimentos: receitaReench,
       ticketMedio: ticket,
     );
+  }
+
+  // ── Cálculo de desempenho por operador ──────────────────────────────────
+
+  List<_DesempenhoOperador> get _desempenhoOperadores {
+    final lista = _pedidosFiltrados;
+    if (lista.isEmpty) return [];
+
+    final Map<int, List<PedidoModel>> porUsuario = {};
+    for (final p in lista) {
+      porUsuario.putIfAbsent(p.idUsuario, () => []).add(p);
+    }
+
+    final operadores = porUsuario.entries.map((e) {
+      final pedidos = e.value;
+      final receita = pedidos.fold(Decimal.zero, (acc, p) => acc + p.total);
+      final ticket  = pedidos.isNotEmpty
+          ? (receita / Decimal.fromInt(pedidos.length))
+              .toDecimal(scaleOnInfinitePrecision: 2)
+          : Decimal.zero;
+
+      final primeiro = pedidos.first;
+      final nome     = _nomeOperador(primeiro);
+
+      return _DesempenhoOperador(
+        idUsuario:    e.key,
+        nome:         nome,
+        totalPedidos: pedidos.length,
+        totalReceita: receita,
+        ticketMedio:  ticket,
+      );
+    }).toList();
+
+    operadores.sort((a, b) => b.totalReceita.compareTo(a.totalReceita));
+    return operadores;
+  }
+
+  String _nomeOperador(PedidoModel p) {
+    final nome    = p.nomeUsuario;
+    final apelido = p.apelidoUsuario;
+    if (nome != null && apelido != null) return '$nome $apelido';
+    if (nome != null) return nome;
+    return 'Operador #${p.idUsuario}';
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -331,7 +398,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       );
     }
 
-    final m = _metricas;
+    final m          = _metricas;
+    final operadores = _desempenhoOperadores;
+    final receitaMax = operadores.isNotEmpty
+        ? operadores.first.totalReceita
+        : Decimal.zero;
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -367,6 +438,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
             // ── Breakdown compras vs reenchimentos ──────────────────────
             _BreakdownCard(metricas: m),
+            const SizedBox(height: 16),
+
+            // ── Desempenho dos operadores ───────────────────────────────
+            _DesempenhoCard(
+              operadores: operadores,
+              receitaMax: receitaMax,
+            ),
           ],
         ),
       ),
@@ -654,6 +732,237 @@ class _BreakdownLinha extends StatelessWidget {
             backgroundColor: cor.withOpacity(0.1),
             valueColor: AlwaysStoppedAnimation<Color>(cor),
             minHeight: 4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Desempenho dos Operadores ────────────────────────────────────────────────
+
+class _DesempenhoCard extends StatelessWidget {
+  final List<_DesempenhoOperador> operadores;
+  final Decimal receitaMax;
+
+  const _DesempenhoCard({
+    required this.operadores,
+    required this.receitaMax,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Cabeçalho ────────────────────────────────────────────────
+          Row(
+            children: [
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: _kPurple.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(Icons.leaderboard_rounded,
+                    color: _kPurple, size: 16),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('Desempenho por operador',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _kTextPrimary)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _kPurple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _kPurple.withOpacity(0.25)),
+                ),
+                child: Text(
+                  '${operadores.length} operador${operadores.length != 1 ? 'es' : ''}',
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: _kPurple),
+                ),
+              ),
+            ],
+          ),
+
+          // ── Lista ────────────────────────────────────────────────────
+          if (operadores.isEmpty) ...[
+            const SizedBox(height: 20),
+            const Center(
+              child: Text('Sem dados neste período',
+                  style: TextStyle(fontSize: 13, color: _kTextSecondary)),
+            ),
+            const SizedBox(height: 4),
+          ] else ...[
+            const SizedBox(height: 16),
+            ...operadores.asMap().entries.map((e) {
+              final idx    = e.key;
+              final op     = e.value;
+              final cor    = _kAvatarCores[idx % _kAvatarCores.length];
+              final pct    = receitaMax > Decimal.zero
+                  ? (op.totalReceita / receitaMax).toDouble()
+                  : 0.0;
+              final isLider = idx == 0;
+
+              return Padding(
+                padding: EdgeInsets.only(
+                    bottom: idx < operadores.length - 1 ? 14 : 0),
+                child: _OperadorLinha(
+                  posicao:  idx + 1,
+                  operador: op,
+                  cor:      cor,
+                  pct:      pct,
+                  isLider:  isLider,
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OperadorLinha extends StatelessWidget {
+  final int posicao;
+  final _DesempenhoOperador operador;
+  final Color cor;
+  final double pct;
+  final bool isLider;
+
+  const _OperadorLinha({
+    required this.posicao,
+    required this.operador,
+    required this.cor,
+    required this.pct,
+    required this.isLider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Iniciais do nome para o avatar
+    final partes   = operador.nome.trim().split(' ');
+    final iniciais = partes.length >= 2
+        ? '${partes.first[0]}${partes.last[0]}'.toUpperCase()
+        : operador.nome
+            .substring(0, operador.nome.length.clamp(1, 2))
+            .toUpperCase();
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            // ── Posição ─────────────────────────────────────────────
+            SizedBox(
+              width: 22,
+              child: Text(
+                '#$posicao',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: isLider ? _kWarning : _kTextSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // ── Avatar com estrela para o líder ─────────────────────
+            Stack(
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: cor.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: cor.withOpacity(isLider ? 0.6 : 0.28),
+                        width: isLider ? 1.5 : 1),
+                  ),
+                  child: Center(
+                    child: Text(iniciais,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: cor)),
+                  ),
+                ),
+                if (isLider)
+                  Positioned(
+                    right: 0, top: 0,
+                    child: Container(
+                      width: 14, height: 14,
+                      decoration: BoxDecoration(
+                        color: _kWarning,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _kCard, width: 1.5),
+                      ),
+                      child: const Icon(Icons.star_rounded,
+                          color: _kBg, size: 8),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+
+            // ── Nome + sub-info ──────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    operador.nome,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kTextPrimary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${operador.totalPedidos} pedido${operador.totalPedidos != 1 ? 's' : ''}'
+                    ' · ticket ${operador.ticketMedio.toStringAsFixed(0)} MT',
+                    style: const TextStyle(
+                        fontSize: 11, color: _kTextSecondary),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Receita ──────────────────────────────────────────────
+            Text(
+              '${operador.totalReceita.toStringAsFixed(2)} MT',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: cor),
+            ),
+          ],
+        ),
+
+        // ── Barra relativa ao líder ──────────────────────────────────
+        const SizedBox(height: 7),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: pct,
+            backgroundColor: cor.withOpacity(0.08),
+            valueColor: AlwaysStoppedAnimation<Color>(
+                cor.withOpacity(isLider ? 1.0 : 0.55)),
+            minHeight: 3,
           ),
         ),
       ],
