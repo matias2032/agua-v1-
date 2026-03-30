@@ -17,8 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     boolean existsByEmail(String email);
 
     /** Busca por email, telefone ou apelido — usado no login */
-    @Query("SELECT u FROM Usuario u WHERE u.email = :c OR u.telefone = :c OR u.apelido = :c")
-    Optional<Usuario> findByEmailOrTelefoneOrApelido(@Param("c") String credencial);
+   @Query("SELECT u FROM Usuario u WHERE u.email = :c OR u.telefone = :c OR u.apelido = :c")
+List<Usuario> findByEmailOrTelefoneOrApelido(@Param("c") String credencial);
 
     /** Lista todos exceto admins (id_perfil = 1) */
     @Query("SELECT u FROM Usuario u WHERE u.idPerfil != 1")

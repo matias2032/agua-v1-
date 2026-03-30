@@ -184,11 +184,9 @@ class _SplashScreenState extends State<SplashScreen>
       acumulado += _etapas[1].peso;
       await _setProgress(acumulado, _etapas[1].label);
       _addLog('🔥 A inicializar Firebase…');
-      try {
-        if (Firebase.apps.isEmpty) {
-          await Firebase.initializeApp(
-              options: DefaultFirebaseOptions.currentPlatform);
-        }
+  try {
+  await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform);
         _addLog('✅ Firebase inicializado.', level: _LogLevel.success);
         FirebaseFirestore.instance.settings = const Settings(
           persistenceEnabled: true,

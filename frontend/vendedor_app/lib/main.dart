@@ -35,15 +35,6 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-    // 1. Inicializar Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // 2. Inicializar serviços offline
-  await ConnectivityService.instance.inicializar();
-  await SyncQueueService.instance.inicializar();
-
   await ApiConfig.baseUrlAsync.then((_) {
     debugPrint("✅ API Config carregada com sucesso!");
   }).catchError((error) {

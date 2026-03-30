@@ -10,7 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Optional;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -44,15 +44,15 @@ public class AuthController {
                     .body(Map.of("message", "Credencial e senha são obrigatórios."));
         }
 
-        Optional<Usuario> opt = usuarioRepository.findByEmailOrTelefoneOrApelido(credencial);
+List<Usuario> resultados = usuarioRepository.findByEmailOrTelefoneOrApelido(credencial);
 
-        if (opt.isEmpty()) {
-            log.warn("❌ Nenhum utilizador para credencial='{}'", credencial);
-            return ResponseEntity.status(401)
-                    .body(Map.of("message", "Credencial ou senha incorretos."));
-        }
+if (resultados.isEmpty()) {
+    log.warn("❌ Nenhum utilizador para credencial='{}'", credencial);
+    return ResponseEntity.status(401)
+            .body(Map.of("message", "Credencial ou senha incorretos."));
+}
 
-        Usuario u = opt.get();
+Usuario u = resultados.get(0);
         log.info("✅ Utilizador encontrado — ID={} nome='{} {}'",
                 u.getIdUsuario(), u.getNome(), u.getApelido());
 

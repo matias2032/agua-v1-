@@ -165,6 +165,7 @@ public class FirebaseSyncService {
               .get();
 
             log.debug("✅ Produto {} sincronizado no Firestore.", produto.getIdProduto());
+            log.info("🔥 sincronizarProduto chamado — ID={}", produto.getIdProduto());
 
         } catch (Exception e) {
             log.error("❌ Erro ao sincronizar produto {} no Firestore: {}",
@@ -184,6 +185,7 @@ public void sincronizarUsuario(com.agua.versao1.usuario.entity.Usuario usuario) 
           .set(usuarioToMap(usuario))
           .get();
         log.debug("✅ Usuário {} sincronizado no Firestore.", usuario.getIdUsuario());
+        log.info("🔥 sincronizarUsuario chamado — ID={}", usuario.getIdUsuario());
     } catch (Exception e) {
         log.error("❌ Erro ao sincronizar usuário {} no Firestore: {}", usuario.getIdUsuario(), e.getMessage(), e);
     }
