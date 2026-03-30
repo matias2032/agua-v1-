@@ -1,4 +1,4 @@
-package com.agua.versao1.config;
+package com.agua.versao1.usuario.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

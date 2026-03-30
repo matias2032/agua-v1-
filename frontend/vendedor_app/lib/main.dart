@@ -25,12 +25,24 @@ import 'screens/movimentos_estoque_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/historico_pedidos_screen.dart';
 import 'screens/configuracoes_impressora_screen.dart';
+import 'screens/splash_screen.dart';
 
 // ─── Auth ──────────────────────────────────────────────────
 import 'screens/login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+    // 1. Inicializar Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // 2. Inicializar serviços offline
+  await ConnectivityService.instance.inicializar();
+  await SyncQueueService.instance.inicializar();
 
   await ApiConfig.baseUrlAsync.then((_) {
     debugPrint("✅ API Config carregada com sucesso!");
@@ -81,7 +93,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
 
       // 🔥 Continua login como entrada
-      initialRoute: '/login',
+      initialRoute: '/splash_screen',
 
       onGenerateRoute: (settings) {
 
@@ -194,6 +206,13 @@ case '/dashboard':
     builder: (_) => const ConfiguracoesImpressoraScreen(),
     settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
   );
+
+      case '/splash_screen':
+  return MaterialPageRoute(
+    builder: (_) => const SplashScreen(),
+    settings: settings, // IMPORTANTE: Passa o nome '/dashboard' para a tela
+  );
+
 
 
 

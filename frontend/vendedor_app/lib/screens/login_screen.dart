@@ -1,17 +1,126 @@
+// lib/screens/login_screen.dart
+//
+// LoginScreen — AquaStore
+// Melhorias:
+//   - Mensagens de erro humanizadas (sem stack técnico exposto)
+//   - Banner de erro compacto com truncagem inteligente
+//   - Detecção específica de SocketException / timeout / 401
+//   - Botão "Ver detalhes" para quem quiser o erro técnico
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 
-// ─── Paleta ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Paleta
+// ─────────────────────────────────────────────────────────────────────────────
+
 const _kBg            = Color(0xFF0A0E1A);
 const _kSurface       = Color(0xFF111827);
 const _kCard          = Color(0xFF161D2E);
 const _kCardBorder    = Color(0xFF1E2A42);
 const _kAccent        = Color(0xFF00C9FF);
+const _kAccentDeep    = Color(0xFF0099CC);
 const _kTextPrimary   = Color(0xFFF0F4FF);
 const _kTextSecondary = Color(0xFF8899BB);
 const _kSuccess       = Color(0xFF00E5A0);
 const _kDanger        = Color(0xFFFF4D6A);
+const _kWarning       = Color(0xFFFFB547);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers de erro
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Converte um erro técnico numa mensagem amigável para o utilizador.
+/// Guarda o erro original em [technicalDetail] para quem quiser ver.
+class _ErroAmigavel {
+  final String titulo;
+  final String subtitulo;
+  final String? technicalDetail;
+  final _TipoErro tipo;
+
+  const _ErroAmigavel({
+    required this.titulo,
+    required this.subtitulo,
+    this.technicalDetail,
+    required this.tipo,
+  });
+}
+
+enum _TipoErro { credenciais, conexao, timeout, servidor, desconhecido }
+
+_ErroAmigavel _parseErro(String raw) {
+  final lower = raw.toLowerCase();
+
+  // Sem conexão / servidor recusou
+  if (lower.contains('socketexception') ||
+      lower.contains('connection refused') ||
+      lower.contains('computador remoto recusou') ||
+      lower.contains('errno = 1225') ||
+      lower.contains('errno = 111') ||
+      lower.contains('network is unreachable') ||
+      lower.contains('failed host lookup')) {
+    return _ErroAmigavel(
+      titulo: 'Servidor inacessível',
+      subtitulo: 'Não foi possível ligar ao servidor. '
+          'Verifique se o servidor está activo e na mesma rede.',
+      technicalDetail: raw,
+      tipo: _TipoErro.conexao,
+    );
+  }
+
+  // Timeout
+  if (lower.contains('timeout') || lower.contains('timed out')) {
+    return _ErroAmigavel(
+      titulo: 'Tempo limite excedido',
+      subtitulo: 'O servidor demorou demasiado a responder. '
+          'Verifique a sua ligação e tente novamente.',
+      technicalDetail: raw,
+      tipo: _TipoErro.timeout,
+    );
+  }
+
+  // Credenciais inválidas (401 / 403)
+  if (lower.contains('credenciais') ||
+      lower.contains('inválid') ||
+      lower.contains('unauthorized') ||
+      lower.contains('401') ||
+      lower.contains('403')) {
+    return _ErroAmigavel(
+      titulo: 'Credenciais inválidas',
+      subtitulo: 'Utilizador ou senha incorrectos. '
+          'Verifique os seus dados e tente novamente.',
+      technicalDetail: raw,
+      tipo: _TipoErro.credenciais,
+    );
+  }
+
+  // Erro 5xx
+  if (lower.contains('500') ||
+      lower.contains('502') ||
+      lower.contains('503') ||
+      lower.contains('internal server')) {
+    return _ErroAmigavel(
+      titulo: 'Erro no servidor',
+      subtitulo: 'O servidor encontrou um problema interno. '
+          'Tente novamente em instantes.',
+      technicalDetail: raw,
+      tipo: _TipoErro.servidor,
+    );
+  }
+
+  // Genérico — mostra algo razoável mas não o stack completo
+  return _ErroAmigavel(
+    titulo: 'Erro inesperado',
+    subtitulo: 'Não foi possível efectuar o login. Tente novamente.',
+    technicalDetail: raw,
+    tipo: _TipoErro.desconhecido,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LoginScreen
+// ─────────────────────────────────────────────────────────────────────────────
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,9 +135,10 @@ class _LoginScreenState extends State<LoginScreen>
   final _credencialCtrl = TextEditingController();
   final _senhaCtrl      = TextEditingController();
 
-  bool    _enviando     = false;
-  bool    _mostrarSenha = false;
-  String? _erro;
+  bool           _enviando     = false;
+  bool           _mostrarSenha = false;
+  _ErroAmigavel? _erro;
+  bool           _mostrarDetalhe = false;
 
   final _servico = ServicoAutenticacao();
 
@@ -36,23 +146,18 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double>   _fadeAnim;
   late final Animation<Offset>   _slideAnim;
 
-  // ── Ciclo de vida ─────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     _entradaCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 550),
-    );
+    )..forward();
     _fadeAnim  = CurvedAnimation(parent: _entradaCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.07),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-        parent: _entradaCtrl, curve: Curves.easeOutCubic));
-
-    _entradaCtrl.forward();
+    ).animate(CurvedAnimation(parent: _entradaCtrl, curve: Curves.easeOutCubic));
   }
 
   @override
@@ -63,43 +168,54 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  // ── Lógica ────────────────────────────────────────────────────────────────
+  // ── Lógica de login ────────────────────────────────────────────────────────
 
   Future<void> _login() async {
-    setState(() => _erro = null);
+    setState(() { _erro = null; _mostrarDetalhe = false; });
     if (!_formKey.currentState!.validate()) return;
 
     HapticFeedback.mediumImpact();
     setState(() => _enviando = true);
 
-    final resultado = await _servico.login(
-      _credencialCtrl.text.trim(),
-      _senhaCtrl.text,
-    );
+    try {
+      final resultado = await _servico.login(
+        _credencialCtrl.text.trim(),
+        _senhaCtrl.text,
+      );
 
-    if (!mounted) return;
-    setState(() => _enviando = false);
+      if (!mounted) return;
+      setState(() => _enviando = false);
 
-    switch (resultado.status) {
-      case StatusAutenticacao.sucesso:
-        HapticFeedback.heavyImpact();
-        await SessaoService.instance.setUsuario(resultado.usuario!);
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/dashboard');
+      switch (resultado.status) {
+        case StatusAutenticacao.sucesso:
+          HapticFeedback.heavyImpact();
+          await SessaoService.instance.setUsuario(resultado.usuario!);
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(context, '/dashboard');
 
-      case StatusAutenticacao.primeiraSenha:
-        await SessaoService.instance.setUsuario(resultado.usuario!);
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/primeira_troca_senha');
+        case StatusAutenticacao.primeiraSenha:
+          await SessaoService.instance.setUsuario(resultado.usuario!);
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(context, '/primeira_troca_senha');
 
-      case StatusAutenticacao.credenciaisInvalidas:
-      case StatusAutenticacao.erroDesconhecido:
-        HapticFeedback.lightImpact();
-        setState(() => _erro = resultado.mensagem);
+        case StatusAutenticacao.credenciaisInvalidas:
+        case StatusAutenticacao.erroDesconhecido:
+          HapticFeedback.lightImpact();
+          setState(() {
+            _erro = _parseErro(resultado.mensagem ?? 'Erro desconhecido');
+          });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      HapticFeedback.lightImpact();
+      setState(() {
+        _enviando = false;
+        _erro = _parseErro(e.toString());
+      });
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Logo ──────────────────────────────────────────────────────────────────
+  // ── Logo ───────────────────────────────────────────────────────────────────
 
   Widget _buildLogo() {
     return Column(
@@ -155,8 +271,7 @@ class _LoginScreenState extends State<LoginScreen>
             boxShadow: [
               BoxShadow(
                 color: _kAccent.withOpacity(0.15),
-                blurRadius: 24,
-                spreadRadius: 2,
+                blurRadius: 24, spreadRadius: 2,
               ),
             ],
           ),
@@ -179,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Card de formulário ────────────────────────────────────────────────────
+  // ── Card ───────────────────────────────────────────────────────────────────
 
   Widget _buildCard() {
     return Container(
@@ -193,11 +308,13 @@ class _LoginScreenState extends State<LoginScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Erro global
+          // Banner de erro
           AnimatedSize(
-            duration: const Duration(milliseconds: 240),
+            duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
-            child: _erro != null ? _buildErroBanner() : const SizedBox.shrink(),
+            child: _erro != null
+                ? _buildErroBanner()
+                : const SizedBox.shrink(),
           ),
 
           _Campo(
@@ -231,37 +348,150 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Erro banner ───────────────────────────────────────────────────────────
+  // ── Banner de erro humanizado ──────────────────────────────────────────────
 
   Widget _buildErroBanner() {
+    if (_erro == null) return const SizedBox.shrink();
+
+    // Cor e ícone segundo o tipo de erro
+    final Color cor;
+    final IconData icone;
+    switch (_erro!.tipo) {
+      case _TipoErro.conexao:
+        cor = _kWarning;
+        icone = Icons.wifi_off_rounded;
+      case _TipoErro.timeout:
+        cor = _kWarning;
+        icone = Icons.timer_off_rounded;
+      case _TipoErro.servidor:
+        cor = _kDanger;
+        icone = Icons.dns_rounded;
+      case _TipoErro.credenciais:
+        cor = _kDanger;
+        icone = Icons.lock_outline_rounded;
+      default:
+        cor = _kDanger;
+        icone = Icons.warning_amber_rounded;
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: _kDanger.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _kDanger.withOpacity(0.25)),
+          color: cor.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cor.withOpacity(0.22)),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.warning_amber_rounded,
-                color: _kDanger, size: 16),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(_erro!,
-                  style: const TextStyle(
-                      fontSize: 12, color: _kDanger, height: 1.4)),
+            // Cabeçalho do erro
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icone, color: cor, size: 17),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _erro!.titulo,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: cor,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _erro!.subtitulo,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cor.withOpacity(0.85),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Botão fechar
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _erro = null;
+                      _mostrarDetalhe = false;
+                    }),
+                    child: Icon(Icons.close_rounded,
+                        size: 16,
+                        color: cor.withOpacity(0.6)),
+                  ),
+                ],
+              ),
             ),
+
+            // Botão "Ver detalhes técnicos" (opcional)
+            if (_erro!.technicalDetail != null) ...[
+              Divider(height: 1, color: cor.withOpacity(0.15)),
+              GestureDetector(
+                onTap: () =>
+                    setState(() => _mostrarDetalhe = !_mostrarDetalhe),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _mostrarDetalhe
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 14,
+                        color: _kTextSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _mostrarDetalhe
+                            ? 'Ocultar detalhes'
+                            : 'Ver detalhes técnicos',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: _kTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_mostrarDetalhe)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _kSurface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _kCardBorder),
+                  ),
+                  child: SelectableText(
+                    _erro!.technicalDetail!,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                      color: _kTextSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  // ── Botão entrar ──────────────────────────────────────────────────────────
+  // ── Botão entrar ───────────────────────────────────────────────────────────
 
   Widget _buildBotaoEntrar() {
     final activo = !_enviando;
@@ -274,7 +504,7 @@ class _LoginScreenState extends State<LoginScreen>
         decoration: BoxDecoration(
           gradient: activo
               ? const LinearGradient(
-                  colors: [_kAccent, Color(0xFF0099CC)],
+                  colors: [_kAccent, _kAccentDeep],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -282,11 +512,13 @@ class _LoginScreenState extends State<LoginScreen>
           color: activo ? null : _kCardBorder,
           borderRadius: BorderRadius.circular(15),
           boxShadow: activo
-              ? [BoxShadow(
-                  color: _kAccent.withOpacity(0.28),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                )]
+              ? [
+                  BoxShadow(
+                    color: _kAccent.withOpacity(0.28),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  )
+                ]
               : null,
         ),
         child: Center(
@@ -316,7 +548,7 @@ class _LoginScreenState extends State<LoginScreen>
 }
 
 // =============================================================================
-// WIDGETS AUXILIARES
+// WIDGETS AUXILIARES (inalterados, apenas paleta)
 // =============================================================================
 
 class _Campo extends StatelessWidget {
@@ -333,7 +565,7 @@ class _Campo extends StatelessWidget {
     required this.hint,
     required this.controller,
     required this.icone,
-    this.keyboardType   = TextInputType.text,
+    this.keyboardType    = TextInputType.text,
     this.textInputAction = TextInputAction.next,
     this.validator,
   });
@@ -357,14 +589,12 @@ class _Campo extends StatelessWidget {
           textInputAction: textInputAction,
           validator: validator,
           style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _kTextPrimary,
-          ),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _kTextPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle:
-                const TextStyle(fontSize: 13, color: _kTextSecondary),
+            hintStyle: const TextStyle(fontSize: 13, color: _kTextSecondary),
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -372,27 +602,21 @@ class _Campo extends StatelessWidget {
             fillColor: _kSurface,
             prefixIcon: Icon(icone, color: _kTextSecondary, size: 18),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kCardBorder),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kCardBorder)),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kCardBorder),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kCardBorder)),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kAccent, width: 1.5),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kAccent, width: 1.5)),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kDanger),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kDanger)),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kDanger, width: 1.5),
-            ),
-            errorStyle:
-                const TextStyle(color: _kDanger, fontSize: 11),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kDanger, width: 1.5)),
+            errorStyle: const TextStyle(color: _kDanger, fontSize: 11),
           ),
         ),
       ],
@@ -439,14 +663,12 @@ class _CampoSenha extends StatelessWidget {
           onFieldSubmitted: onFieldSubmitted,
           validator: validator,
           style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _kTextPrimary,
-          ),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _kTextPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle:
-                const TextStyle(fontSize: 13, color: _kTextSecondary),
+            hintStyle: const TextStyle(fontSize: 13, color: _kTextSecondary),
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -465,27 +687,21 @@ class _CampoSenha extends StatelessWidget {
               ),
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kCardBorder),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kCardBorder)),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kCardBorder),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kCardBorder)),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kAccent, width: 1.5),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kAccent, width: 1.5)),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kDanger),
-            ),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kDanger)),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: _kDanger, width: 1.5),
-            ),
-            errorStyle:
-                const TextStyle(color: _kDanger, fontSize: 11),
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: _kDanger, width: 1.5)),
+            errorStyle: const TextStyle(color: _kDanger, fontSize: 11),
           ),
         ),
       ],

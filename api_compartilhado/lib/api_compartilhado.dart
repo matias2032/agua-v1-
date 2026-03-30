@@ -27,6 +27,9 @@ export 'services/estoque_service.dart';
 export 'services/produto_service.dart';
 export 'services/impressora_service.dart';
 export 'services/pdf_service.dart';
+export 'services/firebase_listener_service.dart';
+export 'services/sync_queue_service.dart';
+export 'services/connectivity_service.dart';
 
 // 4. Exceptions
 export 'exceptions/produto_exceptions.dart';

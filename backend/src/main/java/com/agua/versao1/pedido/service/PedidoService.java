@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.agua.versao1.usuario.repository.UsuarioRepository;
+import com.agua.versao1.shared.firebase.FirebaseSyncService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -25,7 +26,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Service
+@Service 
 @RequiredArgsConstructor
 public class PedidoService {
 
@@ -36,6 +37,7 @@ public class PedidoService {
     private final OperacaoRepository operacaoRepository;
     private final EstoqueAguaRepository estoqueRepository;
     private final UsuarioRepository usuarioRepository;
+    private final FirebaseSyncService firebaseSyncService;
 
     // ─── Criar pedido ─────────────────────────────────────────────────────────
 
@@ -54,14 +56,6 @@ public class PedidoService {
                 .orElseThrow(() -> new RuntimeException(
                         "Operação não encontrada: id=" + request.getIdOperacao()));
 
-        // Validar tipo de pagamento (garantir que existe na BD)
-        // Usamos query nativa simples — tipo_pagamento não tem repositório próprio
-        // mas a constraint da FK garante integridade; fazemos validação lógica aqui
-        // através de uma query no pedidoRepository ou assumimos FK válida.
-        // Para manter o padrão sem criar repositório extra, validamos via existsById
-        // no service de forma consistente com o projecto existente.
-
-        // 2. Resolver itens: calcular litros e preço para cada um
         List<ItemResolucao> itensResolvidos = new ArrayList<>();
         BigDecimal totalLitrosNecessarios = BigDecimal.ZERO;
 
@@ -156,7 +150,10 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
         pedido = pedidoRepository.findById(idPedido)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado após persistência"));
 
+                firebaseSyncService.sincronizarPedido(pedido, itensSalvos); 
+
         return toResponse(pedido, itensSalvos, operacaoPedido, null);
+        
     }
 
     // ─── Leituras ─────────────────────────────────────────────────────────────
@@ -211,6 +208,7 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
         pedidoRepository.save(pedido);
 
         List<ItemPedido> itens = itemPedidoRepository.findByIdPedido(id);
+         firebaseSyncService.sincronizarPedido(pedido, itens); 
         return toResponse(pedido, itens, null, null);
     }
 
@@ -288,6 +286,8 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
     pedido = pedidoRepository.findById(idPedido)
             .orElseThrow(() -> new RuntimeException("Pedido não encontrado após actualização"));
 
+                firebaseSyncService.sincronizarPedido(pedido, todosItens);
+
     return toResponse(pedido, todosItens, null, null);
 }
 
@@ -308,6 +308,7 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado após actualização"));
 
         List<ItemPedido> itens = itemPedidoRepository.findByIdPedido(id);
+         firebaseSyncService.sincronizarPedido(pedido, itens); 
         return toResponse(pedido, itens, null, null);
     }
 
@@ -338,6 +339,7 @@ precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado após cancelamento"));
 
         List<ItemPedido> itens = itemPedidoRepository.findByIdPedido(id);
+         firebaseSyncService.sincronizarPedido(pedido, itens); 
         return toResponse(pedido, itens, null, null);
     }
 
