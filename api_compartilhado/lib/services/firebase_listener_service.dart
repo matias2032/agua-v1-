@@ -98,6 +98,42 @@ class EstoqueFirestore {
   }
 }
 
+class UsuarioFirestore {
+  final int idUsuario;
+  final String nome;
+  final String apelido;
+  final String email;
+  final String telefone;
+  final bool ativo;
+  final int idPerfil;
+  final bool primeiraSenha;
+  final DateTime dataCadastro;
+
+  const UsuarioFirestore({
+    required this.idUsuario,
+    required this.nome,
+    required this.apelido,
+    required this.email,
+    required this.telefone,
+    required this.ativo,
+    required this.idPerfil,
+    required this.primeiraSenha,
+    required this.dataCadastro,
+  });
+
+  factory UsuarioFirestore.fromMap(Map<String, dynamic> map) => UsuarioFirestore(
+    idUsuario:     (map['idUsuario'] as num).toInt(),
+    nome:          map['nome'] as String? ?? '',
+    apelido:       map['apelido'] as String? ?? '',
+    email:         map['email'] as String? ?? '',
+    telefone:      map['telefone'] as String? ?? '',
+    ativo:         map['ativo'] as bool? ?? false,
+    idPerfil:      (map['idPerfil'] as num).toInt(),
+    primeiraSenha: map['primeiraSenha'] as bool? ?? false,
+    dataCadastro:  PedidoFirestore._toDateTime(map['dataCadastro']),
+  );
+}
+
 /// Serviço singleton que gere as subscrições ao Firestore.
 ///
 /// Uso típico num Provider/ChangeNotifier:
@@ -193,4 +229,20 @@ class FirebaseListenerService {
       return [];
     }
   }
+
+  Stream<List<UsuarioFirestore>> usuariosStream({bool? apenasAtivos}) {
+  Query<Map<String, dynamic>> query = _db
+      .collection('usuarios')
+      .orderBy('nome');
+
+  if (apenasAtivos == true) {
+    query = query.where('ativo', isEqualTo: true);
+  }
+
+  return query.snapshots().map((snap) => snap.docs
+      .map((doc) => UsuarioFirestore.fromMap(doc.data()))
+      .toList());
+}
+
+
 }

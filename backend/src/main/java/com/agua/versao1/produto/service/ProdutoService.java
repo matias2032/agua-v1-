@@ -1,6 +1,7 @@
 package com.agua.versao1.produto.service;
 
 import com.agua.versao1.produto.dto.OperacaoDTO;
+import com.agua.versao1.shared.firebase.FirebaseSyncService;
 import com.agua.versao1.produto.dto.PrecoProdutoDTO;
 import com.agua.versao1.produto.dto.ProdutoDTO;
 import com.agua.versao1.produto.entity.Operacao;
@@ -25,6 +26,7 @@ public class ProdutoService {
     private final OperacaoRepository operacaoRepository;
     private final DisponibilidadeProdutoRepository disponibilidadeRepository;
     private final ProdutoMapper mapper;
+        private final FirebaseSyncService firebaseSyncService;
 
     // ─── Produtos ─────────────────────────────────────────────────────────────
 
@@ -54,7 +56,9 @@ public class ProdutoService {
     @Transactional
     public ProdutoDTO.Response criar(ProdutoDTO.Request request) {
         Produto produto = mapper.toEntity(request);
-        return mapper.toResponse(produtoRepository.save(produto));
+        Produto salvo = produtoRepository.save(produto);
+firebaseSyncService.sincronizarProduto(salvo);
+return mapper.toResponse(salvo);
     }
 
     @Transactional
@@ -68,22 +72,22 @@ public class ProdutoService {
         produto.setPrecoReenchimento(request.getPrecoReenchimento());
         produto.setCapacidadeLitros(request.getCapacidadeLitros());
 
-        return mapper.toResponse(produtoRepository.save(produto));
+       Produto salvo = produtoRepository.save(produto);
+firebaseSyncService.sincronizarProduto(salvo);
+return mapper.toResponse(salvo);
     }
 
-  @Transactional
+@Transactional
 public ProdutoDTO.Response ativar(Integer id) {
-    // Garante que existe
     produtoRepository.findById(id)
             .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
 
     produtoRepository.ativarPorId(id);
 
-    // Limpa o cache de 1º nível para buscar o estado real do banco
-    return mapper.toResponse(
-            produtoRepository.findById(id)
-                    .orElseThrow(() -> new ProdutoNaoEncontradoException(id))
-    );
+    Produto salvo = produtoRepository.findById(id)
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
+    firebaseSyncService.sincronizarProduto(salvo);   // ← após buscar estado real
+    return mapper.toResponse(salvo);
 }
 
 @Transactional
@@ -93,10 +97,10 @@ public ProdutoDTO.Response desativar(Integer id) {
 
     produtoRepository.desativarPorId(id);
 
-    return mapper.toResponse(
-            produtoRepository.findById(id)
-                    .orElseThrow(() -> new ProdutoNaoEncontradoException(id))
-    );
+    Produto salvo = produtoRepository.findById(id)
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(id));
+    firebaseSyncService.sincronizarProduto(salvo);   // ← após buscar estado real
+    return mapper.toResponse(salvo);
 }
     // ─── Disponibilidade (vw_disponibilidade_produto) ─────────────────────────
 

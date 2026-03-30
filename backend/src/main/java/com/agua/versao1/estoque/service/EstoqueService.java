@@ -6,6 +6,8 @@ import com.agua.versao1.estoque.entity.EstoqueAgua;
 import com.agua.versao1.estoque.entity.MovimentoEstoque;
 import com.agua.versao1.estoque.repository.EstoqueAguaRepository;
 import com.agua.versao1.estoque.repository.MovimentoEstoqueRepository;
+import com.agua.versao1.shared.firebase.FirebaseSyncService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +22,7 @@ public class EstoqueService {
 
     private final EstoqueAguaRepository estoqueRepository;
     private final MovimentoEstoqueRepository movimentoRepository;
+    private final FirebaseSyncService firebaseSyncService;
 
     // ─── Leituras ────────────────────────────────────────────────────────────
 
@@ -63,6 +66,7 @@ public class EstoqueService {
 
         estoque.setLitrosDisponiveis(novo);
         estoqueRepository.save(estoque);
+        firebaseSyncService.sincronizarEstoque(estoque);   
 
         registarMovimento(estoque.getIdEstoque(), request.getIdUsuario(), null,
                 "entrada", request.getLitros(), anterior, novo, request.getMotivo());
@@ -84,6 +88,7 @@ public class EstoqueService {
 
         estoque.setLitrosDisponiveis(novo);
         estoqueRepository.save(estoque);
+        firebaseSyncService.sincronizarEstoque(estoque);   
 
         registarMovimento(estoque.getIdEstoque(), request.getIdUsuario(), null,
                 "saida", request.getLitros(), anterior, novo, request.getMotivo());
@@ -103,6 +108,7 @@ public class EstoqueService {
         estoque.setLitrosDisponiveis(novoValor);
         estoque.setObservacao(request.getObservacao());
         estoqueRepository.save(estoque);
+        firebaseSyncService.sincronizarEstoque(estoque);   
 
         // Só regista movimento se houve alteração
         if (delta.compareTo(BigDecimal.ZERO) > 0) {

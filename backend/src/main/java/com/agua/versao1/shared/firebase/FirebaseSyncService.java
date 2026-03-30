@@ -172,6 +172,50 @@ public class FirebaseSyncService {
         }
     }
 
+    // ─── Usuario ─────────────────────────────────────────────────────────────────
+
+@Async
+public void sincronizarUsuario(com.agua.versao1.usuario.entity.Usuario usuario) {
+    Firestore db = getFirestore();
+    if (db == null) { log.debug("Firebase não disponível — sincronizarUsuario ignorado."); return; }
+    try {
+        db.collection("usuarios")
+          .document(String.valueOf(usuario.getIdUsuario()))
+          .set(usuarioToMap(usuario))
+          .get();
+        log.debug("✅ Usuário {} sincronizado no Firestore.", usuario.getIdUsuario());
+    } catch (Exception e) {
+        log.error("❌ Erro ao sincronizar usuário {} no Firestore: {}", usuario.getIdUsuario(), e.getMessage(), e);
+    }
+}
+
+@Async
+public void removerUsuario(Integer idUsuario) {
+    Firestore db = getFirestore();
+    if (db == null) return;
+    try {
+        db.collection("usuarios").document(String.valueOf(idUsuario)).delete().get();
+        log.debug("🗑️  Usuário {} removido do Firestore.", idUsuario);
+    } catch (Exception e) {
+        log.error("❌ Erro ao remover usuário {} do Firestore: {}", idUsuario, e.getMessage(), e);
+    }
+}
+
+private Map<String, Object> usuarioToMap(com.agua.versao1.usuario.entity.Usuario u) {
+    Map<String, Object> doc = new HashMap<>();
+    doc.put("idUsuario",     u.getIdUsuario());
+    doc.put("nome",          u.getNome());
+    doc.put("apelido",       u.getApelido() != null ? u.getApelido() : "");
+    doc.put("email",         u.getEmail());
+    doc.put("telefone",      u.getTelefone() != null ? u.getTelefone() : "");
+    doc.put("ativo",         u.getAtivo() != null ? u.getAtivo() : false);
+    doc.put("idPerfil",      u.getIdPerfil());
+    doc.put("primeiraSenha", u.getPrimeiraSenha() != null ? u.getPrimeiraSenha() : false);
+    doc.put("dataCadastro",  toTimestamp(u.getDataCadastro()));
+    // senhaHash nunca é exposta
+    return doc;
+}
+
     // ─── Conversores ─────────────────────────────────────────────────────────
 
     /**

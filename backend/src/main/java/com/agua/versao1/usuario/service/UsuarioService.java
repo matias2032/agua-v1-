@@ -1,5 +1,6 @@
 package com.agua.versao1.usuario.service;
 
+import com.agua.versao1.shared.firebase.FirebaseSyncService;
 import com.agua.versao1.usuario.dto.request.UsuarioCreateRequest;
 import com.agua.versao1.usuario.dto.request.UsuarioUpdateRequest;
 import com.agua.versao1.usuario.dto.response.UsuarioResponse;
@@ -26,6 +27,7 @@ public class UsuarioService {
 
     private static final String SENHA_PADRAO  = "12345678";
     private static final int    ID_PERFIL_ADMIN = 1;
+    private final FirebaseSyncService firebaseSyncService;
 
     // ── Listar ───────────────────────────────────────────────────────────────
 
@@ -84,6 +86,7 @@ public class UsuarioService {
                 .build();
 
         Usuario salvo = usuarioRepository.save(u);
+        firebaseSyncService.sincronizarUsuario(salvo);
         log.info("Usuário criado ID={}", salvo.getIdUsuario());
         return UsuarioResponse.fromEntity(salvo);
     }
@@ -115,7 +118,10 @@ public class UsuarioService {
         u.setIdPerfil (req.getIdPerfil());
 
         log.info("Usuário ID={} atualizado", id);
-        return UsuarioResponse.fromEntity(usuarioRepository.save(u));
+      Usuario salvo = usuarioRepository.save(u);
+firebaseSyncService.sincronizarUsuario(salvo);   // ← adicionar
+return UsuarioResponse.fromEntity(salvo);
+
     }
 
     // ── Toggle status ─────────────────────────────────────────────────────────
@@ -132,7 +138,9 @@ public class UsuarioService {
 
         u.toggleStatus();
         log.info("Usuário ID={} → {}", id, Boolean.TRUE.equals(u.getAtivo()) ? "ATIVO" : "INATIVO");
-        return UsuarioResponse.fromEntity(usuarioRepository.save(u));
+        Usuario salvo = usuarioRepository.save(u);
+firebaseSyncService.sincronizarUsuario(salvo);   // ← adicionar
+return UsuarioResponse.fromEntity(salvo);
     }
 
     // ── Reset de senha ────────────────────────────────────────────────────────
@@ -146,7 +154,9 @@ public class UsuarioService {
         u.setPrimeiraSenha(true);
 
         log.info("Senha resetada para padrão — ID={}", id);
-        return UsuarioResponse.fromEntity(usuarioRepository.save(u));
+        Usuario salvo = usuarioRepository.save(u);
+firebaseSyncService.sincronizarUsuario(salvo);   // ← adicionar
+return UsuarioResponse.fromEntity(salvo);
     }
 
     // ── Auxiliar ──────────────────────────────────────────────────────────────

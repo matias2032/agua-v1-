@@ -12,7 +12,7 @@ const _kCardBorder    = Color(0xFF1E2A42);
 const _kAccent        = Color(0xFF00C9FF);
 const _kTextPrimary   = Color(0xFFF0F4FF);
 const _kTextSecondary = Color(0xFF8899BB);
-const _kSuccess       = Color(0xFF00E5A0);
+const _kSuccess       = Color.fromARGB(255, 53, 100, 86);
 const _kWarning       = Color(0xFFFFB800);
 const _kDanger        = Color(0xFFFF4D6A);
 

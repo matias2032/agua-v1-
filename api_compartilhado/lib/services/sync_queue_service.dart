@@ -1,15 +1,4 @@
 // lib/services/sync_queue_service.dart
-//
-// Fila durável de operações offline.
-// Quando a rede está indisponível, as operações são guardadas na tabela
-// sync_queue do PostgreSQL (via backend). Quando a ligação volta,
-// este serviço reenvia as operações pendentes ao Spring Boot por ordem
-// de criação, com backoff exponencial (máx. 3 tentativas).
-//
-// Dependências (pubspec.yaml):
-//   http: ^1.x.x
-//   connectivity_plus: ^6.x.x
-//   shared_preferences: ^2.x.x
 
 import 'dart:async';
 import 'dart:convert';
@@ -17,32 +6,46 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'connectivity_service.dart';
 
-// ─── Constantes de configuração ───────────────────────────────────────────────
-
 const _kMaxTentativas = 3;
-const _kBaseUrl = 'http://localhost:8080'; // ajustar para produção
+const _kBaseUrl = 'http://localhost:8080';
 
-// Backoff: tentativa 1 → 2s, tentativa 2 → 4s, tentativa 3 → 8s
 Duration _backoff(int tentativa) =>
     Duration(seconds: (2 << tentativa).clamp(2, 30));
 
-// ─── Modelo de operação na fila ───────────────────────────────────────────────
+// ─── Enum ────────────────────────────────────────────────────────────────────
 
 enum OperacaoTipo {
+  // Pedido
   criarPedido,
   adicionarItem,
   finalizarPedido,
   cancelarPedido,
   actualizarValorPago,
+  // Usuario
+  criarUsuario,
+  atualizarUsuario,
+  toggleStatusUsuario,
+  resetarSenhaUsuario,
+  // Produto
+  criarProduto,
+  atualizarProduto,
+  ativarProduto,
+  desativarProduto,
+  // Estoque
+  adicionarEstoque,
+  removerEstoque,
+  definirEstoque,
 }
 
+// ─── Modelo ──────────────────────────────────────────────────────────────────
+
 class OperacaoFila {
-  final String id;          // UUID gerado localmente
+  final String id;
   final OperacaoTipo tipo;
   final Map<String, dynamic> payload;
   final DateTime criadoEm;
   int tentativas;
-  String status; // 'pendente' | 'enviando' | 'enviado' | 'erro'
+  String status;
 
   OperacaoFila({
     required this.id,
@@ -54,18 +57,17 @@ class OperacaoFila {
   });
 
   Map<String, dynamic> toJson() => {
-        'id':        id,
-        'tipo':      tipo.name,
-        'payload':   payload,
-        'criadoEm':  criadoEm.toIso8601String(),
+        'id':         id,
+        'tipo':       tipo.name,
+        'payload':    payload,
+        'criadoEm':   criadoEm.toIso8601String(),
         'tentativas': tentativas,
-        'status':    status,
+        'status':     status,
       };
 
   factory OperacaoFila.fromJson(Map<String, dynamic> json) => OperacaoFila(
         id:          json['id'] as String,
-        tipo:        OperacaoTipo.values
-                        .firstWhere((e) => e.name == json['tipo']),
+        tipo:        OperacaoTipo.values.firstWhere((e) => e.name == json['tipo']),
         payload:     Map<String, dynamic>.from(json['payload'] as Map),
         criadoEm:    DateTime.parse(json['criadoEm'] as String),
         tentativas:  (json['tentativas'] as int?) ?? 0,
@@ -73,7 +75,7 @@ class OperacaoFila {
       );
 }
 
-// ─── Serviço principal ────────────────────────────────────────────────────────
+// ─── Serviço ─────────────────────────────────────────────────────────────────
 
 class SyncQueueService {
   static final SyncQueueService instance = SyncQueueService._internal();
@@ -82,13 +84,9 @@ class SyncQueueService {
 
   static const _prefsKey = 'sync_queue_v1';
 
-  // Fila em memória (espelha o que está em SharedPreferences)
   final List<OperacaoFila> _fila = [];
-
-  // Evita múltiplos ciclos de sync simultâneos
   bool _sincronizando = false;
 
-  // Stream público para a UI observar o estado da fila
   final _controller = StreamController<List<OperacaoFila>>.broadcast();
   Stream<List<OperacaoFila>> get stream => _controller.stream;
 
@@ -97,9 +95,8 @@ class SyncQueueService {
 
   int get totalPendentes => pendentes.length;
 
-  // ── Inicialização ──────────────────────────────────────────────────────────
+  // ── Inicialização ─────────────────────────────────────────────────────────
 
-  /// Carregar fila do disco e registar listener de conectividade.
   Future<void> inicializar() async {
     await _carregarDoDisco();
     ConnectivityService.instance.onlineStream.listen((online) {
@@ -107,10 +104,8 @@ class SyncQueueService {
     });
   }
 
-  // ── Enfileirar operação ───────────────────────────────────────────────────
+  // ── Enfileirar ────────────────────────────────────────────────────────────
 
-  /// Adiciona uma operação à fila e tenta processá-la imediatamente
-  /// se houver ligação.
   Future<void> enfileirar({
     required OperacaoTipo tipo,
     required Map<String, dynamic> payload,
@@ -125,23 +120,19 @@ class SyncQueueService {
     await _salvarNoDisco();
     _emitir();
 
-    if (ConnectivityService.instance.estaOnline) {
-      _processarFila();
-    }
+    if (ConnectivityService.instance.estaOnline) _processarFila();
   }
 
-  // ── Processamento da fila ─────────────────────────────────────────────────
+  // ── Processamento ─────────────────────────────────────────────────────────
 
   Future<void> _processarFila() async {
     if (_sincronizando) return;
     _sincronizando = true;
-
     try {
-      // Processa em ordem de criação
-      final pendentesOrdenados = List<OperacaoFila>.from(pendentes)
+      final ordenados = List<OperacaoFila>.from(pendentes)
         ..sort((a, b) => a.criadoEm.compareTo(b.criadoEm));
 
-      for (final op in pendentesOrdenados) {
+      for (final op in ordenados) {
         if (!ConnectivityService.instance.estaOnline) break;
         await _enviarComRetry(op);
       }
@@ -157,7 +148,6 @@ class SyncQueueService {
         _emitir();
 
         final sucesso = await _enviarAoBackend(op);
-
         if (sucesso) {
           op.status = 'enviado';
           _fila.remove(op);
@@ -166,7 +156,6 @@ class SyncQueueService {
           return;
         }
       } catch (_) {
-        // Rede caiu a meio — sai do loop
         break;
       }
 
@@ -179,62 +168,127 @@ class SyncQueueService {
       }
     }
 
-    // Esgotou tentativas
     op.status = 'erro';
     await _salvarNoDisco();
     _emitir();
   }
 
-  // ── Envio HTTP ao Spring Boot ────────────────────────────────────────────
+  // ── Envio HTTP ────────────────────────────────────────────────────────────
 
   Future<bool> _enviarAoBackend(OperacaoFila op) async {
-    final headers = {
-      'Content-Type': 'application/json',
-      // Adaptar para o mecanismo de sessão real (ex: token JWT)
-      if (op.payload['idUsuario'] != null)
-        'X-Usuario-Id': op.payload['idUsuario'].toString(),
-    };
+    const timeout = Duration(seconds: 15);
+    final h = {'Content-Type': 'application/json'};
 
     try {
       http.Response resp;
+      final p = op.payload;
 
       switch (op.tipo) {
+
+        // ── Pedido ──────────────────────────────────────────────────────────
+
         case OperacaoTipo.criarPedido:
           resp = await http
-              .post(Uri.parse('$_kBaseUrl/api/pedidos'),
-                  headers: headers, body: jsonEncode(op.payload))
-              .timeout(const Duration(seconds: 15));
+              .post(Uri.parse('$_kBaseUrl/api/pedidos'), headers: h, body: jsonEncode(p))
+              .timeout(timeout);
 
         case OperacaoTipo.adicionarItem:
-          final id = op.payload['idPedido'];
           resp = await http
-              .post(Uri.parse('$_kBaseUrl/api/pedidos/$id/itens'),
-                  headers: headers, body: jsonEncode(op.payload))
-              .timeout(const Duration(seconds: 15));
+              .post(Uri.parse('$_kBaseUrl/api/pedidos/${p['idPedido']}/itens'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
 
         case OperacaoTipo.finalizarPedido:
-          final id = op.payload['idPedido'];
           resp = await http
-              .patch(Uri.parse('$_kBaseUrl/api/pedidos/$id/finalizar'),
-                  headers: headers)
-              .timeout(const Duration(seconds: 15));
+              .patch(Uri.parse('$_kBaseUrl/api/pedidos/${p['idPedido']}/finalizar'),
+                  headers: h)
+              .timeout(timeout);
 
         case OperacaoTipo.cancelarPedido:
-          final id = op.payload['idPedido'];
           resp = await http
-              .post(Uri.parse('$_kBaseUrl/api/pedidos/$id/cancelar'),
-                  headers: headers, body: jsonEncode(op.payload))
-              .timeout(const Duration(seconds: 15));
+              .post(Uri.parse('$_kBaseUrl/api/pedidos/${p['idPedido']}/cancelar'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
 
         case OperacaoTipo.actualizarValorPago:
-          final id = op.payload['idPedido'];
           resp = await http
-              .patch(Uri.parse('$_kBaseUrl/api/pedidos/$id/valor-pago'),
-                  headers: headers, body: jsonEncode(op.payload))
-              .timeout(const Duration(seconds: 15));
+              .patch(Uri.parse('$_kBaseUrl/api/pedidos/${p['idPedido']}/valor-pago'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        // ── Usuario ─────────────────────────────────────────────────────────
+
+        case OperacaoTipo.criarUsuario:
+          resp = await http
+              .post(Uri.parse('$_kBaseUrl/api/usuarios'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        case OperacaoTipo.atualizarUsuario:
+          resp = await http
+              .put(Uri.parse('$_kBaseUrl/api/usuarios/${p['idUsuario']}'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        case OperacaoTipo.toggleStatusUsuario:
+          resp = await http
+              .patch(Uri.parse('$_kBaseUrl/api/usuarios/${p['idUsuario']}/toggle-status'),
+                  headers: h)
+              .timeout(timeout);
+
+        case OperacaoTipo.resetarSenhaUsuario:
+          resp = await http
+              .patch(Uri.parse('$_kBaseUrl/api/usuarios/${p['idUsuario']}/reset-password'),
+                  headers: h)
+              .timeout(timeout);
+
+        // ── Produto ─────────────────────────────────────────────────────────
+
+        case OperacaoTipo.criarProduto:
+          resp = await http
+              .post(Uri.parse('$_kBaseUrl/api/produtos'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        case OperacaoTipo.atualizarProduto:
+          resp = await http
+              .put(Uri.parse('$_kBaseUrl/api/produtos/${p['idProduto']}'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        case OperacaoTipo.ativarProduto:
+          resp = await http
+              .patch(Uri.parse('$_kBaseUrl/api/produtos/${p['idProduto']}/ativar'),
+                  headers: h)
+              .timeout(timeout);
+
+        case OperacaoTipo.desativarProduto:
+          resp = await http
+              .patch(Uri.parse('$_kBaseUrl/api/produtos/${p['idProduto']}/desativar'),
+                  headers: h)
+              .timeout(timeout);
+
+        // ── Estoque ─────────────────────────────────────────────────────────
+
+        case OperacaoTipo.adicionarEstoque:
+          resp = await http
+              .post(Uri.parse('$_kBaseUrl/api/estoque/adicionar'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        case OperacaoTipo.removerEstoque:
+          resp = await http
+              .post(Uri.parse('$_kBaseUrl/api/estoque/remover'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
+
+        case OperacaoTipo.definirEstoque:
+          resp = await http
+              .post(Uri.parse('$_kBaseUrl/api/estoque/definir'),
+                  headers: h, body: jsonEncode(p))
+              .timeout(timeout);
       }
 
-      // 2xx = sucesso
       return resp.statusCode >= 200 && resp.statusCode < 300;
 
     } on Exception {
@@ -242,30 +296,25 @@ class SyncQueueService {
     }
   }
 
-  // ── Persistência local (SharedPreferences) ────────────────────────────────
+  // ── Persistência ──────────────────────────────────────────────────────────
 
   Future<void> _salvarNoDisco() async {
     final prefs = await SharedPreferences.getInstance();
-    final json = jsonEncode(_fila.map((o) => o.toJson()).toList());
-    await prefs.setString(_prefsKey, json);
+    await prefs.setString(_prefsKey, jsonEncode(_fila.map((o) => o.toJson()).toList()));
   }
 
   Future<void> _carregarDoDisco() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_prefsKey);
     if (raw == null) return;
-
     try {
       final lista = (jsonDecode(raw) as List<dynamic>)
           .cast<Map<String, dynamic>>()
           .map(OperacaoFila.fromJson)
           .toList();
-      _fila
-        ..clear()
-        ..addAll(lista);
+      _fila..clear()..addAll(lista);
       _emitir();
     } catch (_) {
-      // Ficheiro corrompido — começa com fila vazia
       await prefs.remove(_prefsKey);
     }
   }
@@ -276,17 +325,14 @@ class SyncQueueService {
     if (!_controller.isClosed) _controller.add(List.unmodifiable(_fila));
   }
 
-  String _gerarId() =>
-      '${DateTime.now().millisecondsSinceEpoch}_${_fila.length}';
+  String _gerarId() => '${DateTime.now().millisecondsSinceEpoch}_${_fila.length}';
 
-  /// Limpa operações já enviadas (manutenção).
   Future<void> limparEnviados() async {
     _fila.removeWhere((o) => o.status == 'enviado');
     await _salvarNoDisco();
     _emitir();
   }
 
-  /// Força nova tentativa nas operações em erro.
   Future<void> retentar() async {
     for (final op in _fila.where((o) => o.status == 'erro')) {
       op.tentativas = 0;
