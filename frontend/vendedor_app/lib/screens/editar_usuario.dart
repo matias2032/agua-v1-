@@ -125,7 +125,7 @@ class _EditarUsuarioScreenState extends State<EditarUsuarioScreen>
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
           SessaoService.instance.limparSessao();
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (r) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil('/login', (r) => false);
         }
       } else {
         String erro = 'Erro ao actualizar dados.';
