@@ -14,18 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Controller do módulo de pedidos.
- *
- * NOTA: O idUsuario vem da sessão activa.
- * Nos endpoints que precisam do utilizador autenticado, deve substituir
- * SessaoService.instance.getIdUsuario() pela integração com Spring Security
- * (ex: @AuthenticationPrincipal, SecurityContextHolder, etc.) conforme o
- * padrão adoptado no resto do projecto.
- *
- * O parâmetro idUsuario está recebido via @RequestHeader("X-Usuario-Id")
- * como placeholder — adaptar para o mecanismo de sessão real do projecto.
- */
+
 @RestController
 @RequiredArgsConstructor
 public class PedidoController {
