@@ -30,6 +30,7 @@ C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\produto\repository\D
 C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\produto\repository\OperacaoRepository.java
 C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\produto\repository\ProdutoRepository.java
 C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\produto\service\ProdutoService.java
+C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\shared\controller\HealthCheckController.java
 C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\shared\exception\GlobalExceptionHandler.java
 C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\shared\firebase\FirebaseConfig.java
 C:\dev_hibrido\agua1\backend\src\main\java\com\agua\versao1\shared\firebase\FirebaseSyncService.java

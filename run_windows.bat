@@ -3,24 +3,25 @@ echo ========================================
 echo   Iniciando Backend + Frontend (Windows)
 echo ========================================
 
-:: 1. Iniciar o Backend
+:: 1. Iniciar o Backend (local)
 cd "C:\dev_hibrido\agua1\backend"
 start "BACKEND" cmd /k "mvnw spring-boot:run"
 
 :: Aguardar o Spring Boot iniciar
 timeout /t 15 /nobreak
 
-:: 2. Iniciar o Frontend para Windows
+:: 2. Frontend Windows — aponta para PRODUÇÃO (Render)
 cd "C:\dev_hibrido\agua1\frontend\vendedor_app"
-start "FLUTTER WINDOWS" cmd /k "flutter run -d windows"
+start "FLUTTER WINDOWS (PROD)" cmd /k "flutter run -d windows --dart-define=API_BASE_URL=https://agua-v1.onrender.com --dart-define=FORCE_PROD=true"
 
-:: 3. Iniciar o Frontend para Chrome (Web)
-:: --web-renderer foi removido no Flutter 3.22+
-:: A forma correcta agora é --dart-define=FLUTTER_WEB_USE_SKIA=false (usa CanvasKit por omissão)
-:: Para forçar o renderer HTML (equivalente ao antigo --web-renderer html):
+:: 2b. Frontend Windows — aponta para LOCAL (descomenta para dev)
+@REM start "FLUTTER WINDOWS (LOCAL)" cmd /k "flutter run -d windows"
+
+:: 3. Frontend Web (descomenta quando necessário)
 @REM cd "C:\dev_hibrido\agua1\frontend\cliente_web"
-@REM start "FLUTTER WEB" cmd /k "flutter run -d chrome --dart-define=FLUTTER_WEB_USE_SKIA=false"
+@REM start "FLUTTER WEB (PROD)" cmd /k "flutter run -d chrome --dart-define=API_BASE_URL=https://agua-v1.onrender.com --dart-define=FORCE_PROD=true"
 
 echo ========================================
 echo   Tudo iniciado! Verifique as janelas.
 echo ========================================
+pause

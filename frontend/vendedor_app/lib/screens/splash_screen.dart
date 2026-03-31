@@ -1,7 +1,6 @@
 // lib/screens/splash_screen.dart
 
 import 'dart:math' as math;
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -17,32 +16,12 @@ import '../widgets/connection_banner.dart';
 
 const _kBg            = Color(0xFF0A0E1A);
 const _kSurface       = Color(0xFF111827);
-const _kCard          = Color(0xFF161D2E);
 const _kCardBorder    = Color(0xFF1E2A42);
 const _kAccent        = Color(0xFF00C9FF);
 const _kAccentDeep    = Color(0xFF0099CC);
 const _kTextPrimary   = Color(0xFFF0F4FF);
 const _kTextSecondary = Color(0xFF8899BB);
 const _kSuccess       = Color(0xFF00E5A0);
-const _kWarning       = Color(0xFFFFB547);
-const _kDanger        = Color(0xFFFF4D6A);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Modelo de log
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum _LogLevel { info, success, warning, error }
-
-class _LogEntry {
-  final String message;
-  final _LogLevel level;
-  final DateTime timestamp;
-  const _LogEntry({
-    required this.message,
-    required this.level,
-    required this.timestamp,
-  });
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SplashScreen
@@ -74,11 +53,9 @@ class _SplashScreenState extends State<SplashScreen>
   // ── Estado ─────────────────────────────────────────────────────────────────
   double _progress    = 0.0;
   String _statusLabel = 'A iniciar…';
-  final List<_LogEntry> _logs = [];
-  final ScrollController _logScroll = ScrollController();
-  bool _concluido   = false;
-  bool _semConexao  = false;
-  bool _modoOffline = false;
+  bool   _concluido   = false;
+  bool   _semConexao  = false;
+  bool   _modoOffline = false;
 
   static const _etapas = [
     (label: 'Verificar conectividade',  peso: 0.10),
@@ -94,28 +71,32 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    _fadeCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 700))..forward();
+    _fadeCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700))
+      ..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
 
-    _waveCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 2400))..repeat();
-    _waveAnim = Tween<double>(begin: 0, end: 2 * math.pi).animate(_waveCtrl);
+    _waveCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 2400))
+      ..repeat();
+    _waveAnim =
+        Tween<double>(begin: 0, end: 2 * math.pi).animate(_waveCtrl);
 
-    _fillCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 600));
+    _fillCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
     _fillAnim = Tween<double>(begin: 0, end: 1).animate(
         CurvedAnimation(parent: _fillCtrl, curve: Curves.easeOut));
 
-    _dropCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1600))..repeat(reverse: true);
+    _dropCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1600))
+      ..repeat(reverse: true);
     _dropPulse = Tween<double>(begin: 1.0, end: 1.06).animate(
         CurvedAnimation(parent: _dropCtrl, curve: Curves.easeInOut));
 
-    _checkCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 600));
-    _checkScale = CurvedAnimation(
-        parent: _checkCtrl, curve: Curves.elasticOut);
+    _checkCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _checkScale =
+        CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut);
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _inicializar());
   }
@@ -127,37 +108,23 @@ class _SplashScreenState extends State<SplashScreen>
     _fillCtrl.dispose();
     _dropCtrl.dispose();
     _checkCtrl.dispose();
-    _logScroll.dispose();
     super.dispose();
   }
 
   // ── Utilitários ────────────────────────────────────────────────────────────
 
-  void _addLog(String msg, {_LogLevel level = _LogLevel.info}) {
-    if (!mounted) return;
-    setState(() {
-      _logs.add(_LogEntry(
-          message: msg, level: level, timestamp: DateTime.now()));
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_logScroll.hasClients) {
-        _logScroll.animateTo(_logScroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut);
-      }
-    });
-  }
+  /// Imprime no terminal apenas — nunca actualiza o estado da UI.
+  void _log(String msg) => debugPrint('[AquaStore] $msg');
 
   Future<void> _setProgress(double target, String label) async {
     if (!mounted) return;
     final clamped = target.clamp(0.0, 1.0);
     setState(() {
-      _progress = clamped;
+      _progress    = clamped;
       _statusLabel = label;
     });
     _fillCtrl.animateTo(clamped,
-        duration: const Duration(milliseconds: 550),
-        curve: Curves.easeOut);
+        duration: const Duration(milliseconds: 550), curve: Curves.easeOut);
     await Future.delayed(const Duration(milliseconds: 130));
   }
 
@@ -166,38 +133,37 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _inicializar() async {
     double acumulado = 0.0;
     try {
+
       // ETAPA 1 — Conectividade
       acumulado += _etapas[0].peso;
       await _setProgress(acumulado, _etapas[0].label);
-      _addLog('🔌 Verificando estado da rede…');
+      _log('🔌 Verificando estado da rede…');
       await ConnectivityService.instance.inicializar();
       final online = ConnectivityService.instance.estaOnline;
       if (online) {
-        _addLog('✅ Rede disponível.', level: _LogLevel.success);
+        _log('✅ Rede disponível.');
       } else {
-        _addLog('⚠️  Sem ligação — modo offline activado.',
-            level: _LogLevel.warning);
+        _log('⚠️  Sem ligação — modo offline activado.');
         setState(() => _modoOffline = true);
       }
 
       // ETAPA 2 — Firebase
       acumulado += _etapas[1].peso;
       await _setProgress(acumulado, _etapas[1].label);
-      _addLog('🔥 A inicializar Firebase…');
-  try {
-  await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform);
-        _addLog('✅ Firebase inicializado.', level: _LogLevel.success);
+      _log('🔥 A inicializar Firebase…');
+      try {
+        await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform);
+        _log('✅ Firebase inicializado.');
         FirebaseFirestore.instance.settings = const Settings(
           persistenceEnabled: true,
           cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
         );
-        _addLog('💾 Persistência offline activada.', level: _LogLevel.info);
+        _log('💾 Persistência offline activada.');
       } on FirebaseException catch (e) {
-        _addLog('❌ Falha Firebase: ${e.message}', level: _LogLevel.error);
+        _log('❌ Falha Firebase: ${e.message}');
         if (!online) {
-          _addLog('🔄 Continuando em modo offline…',
-              level: _LogLevel.warning);
+          _log('🔄 Continuando em modo offline…');
         } else {
           rethrow;
         }
@@ -206,67 +172,60 @@ class _SplashScreenState extends State<SplashScreen>
       // ETAPA 3 — Configuração API
       acumulado += _etapas[2].peso;
       await _setProgress(acumulado, _etapas[2].label);
-      _addLog('⚙️  Carregando configuração do servidor…');
-      _addLog('   ↳ host: localhost:8080 | db: agua(v1)',
-          level: _LogLevel.info);
-      _addLog('   ↳ fuso: Africa/Maputo (UTC+2)', level: _LogLevel.info);
+      _log('⚙️  Carregando configuração do servidor…');
+      _log('   ↳ host: ${ApiConfig.baseUrl}');
+      _log('   ↳ fuso: Africa/Maputo (UTC+2)');
       await Future.delayed(const Duration(milliseconds: 280));
-      _addLog('✅ Configuração carregada.', level: _LogLevel.success);
+      _log('✅ Configuração carregada.');
 
       // ETAPA 4 — Estoque
       acumulado += _etapas[3].peso;
       await _setProgress(acumulado, _etapas[3].label);
-      _addLog('📦 Lendo snapshot de estoque…');
+      _log('📦 Lendo snapshot de estoque…');
       try {
         final estoque =
             await FirebaseListenerService.instance.lerEstoqueUmaVez();
         if (estoque != null) {
-          _addLog(
-              '✅ Estoque: ${estoque.litrosDisponiveis.toStringAsFixed(0)} L disponíveis.',
-              level: _LogLevel.success);
+          _log('✅ Estoque: ${estoque.litrosDisponiveis.toStringAsFixed(0)} L disponíveis.');
         } else {
-          _addLog('⚠️  Estoque não encontrado (cache/servidor).',
-              level: _LogLevel.warning);
+          _log('⚠️  Estoque não encontrado (cache/servidor).');
         }
       } catch (e) {
-        _addLog('⚠️  Estoque indisponível: $e', level: _LogLevel.warning);
+        _log('⚠️  Estoque indisponível: $e');
       }
 
       // ETAPA 5 — Pedidos
       acumulado += _etapas[4].peso;
       await _setProgress(acumulado, _etapas[4].label);
-      _addLog('📋 Sincronizando pedidos pendentes…');
+      _log('📋 Sincronizando pedidos pendentes…');
       try {
         final pedidos = await FirebaseListenerService.instance
             .lerPedidosUmaVez(status: 'pendente');
-        _addLog('✅ ${pedidos.length} pedido(s) carregado(s).',
-            level: _LogLevel.success);
+        _log('✅ ${pedidos.length} pedido(s) carregado(s).');
       } catch (e) {
-        _addLog('⚠️  Pedidos indisponíveis: $e', level: _LogLevel.warning);
+        _log('⚠️  Pedidos indisponíveis: $e');
       }
 
       // ETAPA 6 — Fila offline
       acumulado += _etapas[5].peso;
       await _setProgress(acumulado, _etapas[5].label);
-      _addLog('🔄 Inicializando fila de sincronização…');
+      _log('🔄 Inicializando fila de sincronização…');
       await SyncQueueService.instance.inicializar();
       final pendentes = SyncQueueService.instance.totalPendentes;
       if (pendentes > 0) {
-        _addLog('⚠️  $pendentes operação(ões) aguardam sync.',
-            level: _LogLevel.warning);
+        _log('⚠️  $pendentes operação(ões) aguardam sync.');
         if (online) {
-          _addLog('🚀 Reenviando operações pendentes…',
-              level: _LogLevel.info);
+          _log('🚀 Reenviando operações pendentes…');
           await SyncQueueService.instance.retentar();
         }
       } else {
-        _addLog('✅ Fila de sync limpa.', level: _LogLevel.success);
+        _log('✅ Fila de sync limpa.');
       }
 
       // ETAPA 7 — Finalizar
       acumulado = 1.0;
       await _setProgress(acumulado, 'Pronto!');
-      _addLog('🎉 AquaStore pronta!', level: _LogLevel.success);
+      _log('🎉 AquaStore pronta!');
 
       _dropCtrl.stop();
       _waveCtrl.stop();
@@ -276,8 +235,9 @@ class _SplashScreenState extends State<SplashScreen>
 
       await Future.delayed(const Duration(milliseconds: 1000));
       if (mounted) Navigator.pushReplacementNamed(context, '/login');
+
     } catch (e) {
-      _addLog('❌ Erro crítico: $e', level: _LogLevel.error);
+      _log('❌ Erro crítico: $e');
       setState(() => _semConexao = true);
     }
   }
@@ -286,11 +246,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _onReconectar() async {
     setState(() {
-      _semConexao = false;
-      _logs.clear();
-      _progress = 0.0;
+      _semConexao  = false;
+      _progress    = 0.0;
       _statusLabel = 'A reiniciar…';
-      _concluido = false;
+      _concluido   = false;
     });
     _fillCtrl.reset();
     _checkCtrl.reset();
@@ -301,7 +260,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _onContinuarOffline() {
     setState(() {
-      _semConexao = false;
+      _semConexao  = false;
       _modoOffline = true;
     });
     Navigator.pushReplacementNamed(context, '/login');
@@ -320,17 +279,14 @@ class _SplashScreenState extends State<SplashScreen>
         backgroundColor: _kBg,
         body: Stack(
           children: [
-            // Gradiente radial de fundo — igual ao mood da login
+            // Gradiente radial de fundo
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: const Alignment(0, -0.5),
                     radius: 1.1,
-                    colors: [
-                      _kAccent.withOpacity(0.06),
-                      _kBg,
-                    ],
+                    colors: [_kAccent.withOpacity(0.06), _kBg],
                   ),
                 ),
               ),
@@ -342,30 +298,14 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   children: [
                     const SizedBox(height: 48),
-
-                    // ── Marca da app ─────────────────────────────────────
                     _buildBrand(),
-
                     const SizedBox(height: 32),
-
-                    // ── Gota d'água ──────────────────────────────────────
                     _buildDropIndicator(),
-
                     const SizedBox(height: 18),
-
-                    // ── Status + percentagem ─────────────────────────────
                     _buildStatusArea(),
-
                     const SizedBox(height: 16),
-
-                    // ── Pontos de etapas ─────────────────────────────────
                     _buildStepDots(),
-
-                    const SizedBox(height: 18),
-
-                    // ── Painel de logs ───────────────────────────────────
-                    Expanded(child: _buildLogPanel()),
-
+                    const Spacer(),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -434,8 +374,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   Widget _buildDropIndicator() {
     return AnimatedBuilder(
-      animation: Listenable.merge(
-          [_waveAnim, _fillAnim, _dropPulse, _checkScale]),
+      animation:
+          Listenable.merge([_waveAnim, _fillAnim, _dropPulse, _checkScale]),
       builder: (_, __) {
         return Transform.scale(
           scale: _concluido ? 1.0 : _dropPulse.value,
@@ -523,140 +463,16 @@ class _SplashScreenState extends State<SplashScreen>
                     ? _kAccent
                     : _kCardBorder,
             boxShadow: active || done
-                ? [BoxShadow(
-                    color: (done ? _kSuccess : _kAccent).withOpacity(0.4),
-                    blurRadius: 6,
-                  )]
+                ? [
+                    BoxShadow(
+                      color: (done ? _kSuccess : _kAccent).withOpacity(0.4),
+                      blurRadius: 6,
+                    )
+                  ]
                 : null,
           ),
         );
       }),
-    );
-  }
-
-  // ── Painel de logs ─────────────────────────────────────────────────────────
-
-  Widget _buildLogPanel() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kCardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Cabeçalho
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: _kAccent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: const Icon(Icons.terminal_rounded,
-                      size: 13, color: _kAccent),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Sistema de Arranque',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: _kTextSecondary,
-                    letterSpacing: 0.8,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _kSurface,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: _kCardBorder),
-                  ),
-                  child: Text(
-                    '${_logs.length} logs',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: _kTextSecondary,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: _kCardBorder),
-
-          // Área de logs
-          Expanded(
-            child: _logs.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Aguardando…',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                        color: _kTextSecondary,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _logScroll,
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                    itemCount: _logs.length,
-                    itemBuilder: (_, i) => _buildLogItem(_logs[i]),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogItem(_LogEntry entry) {
-    Color textColor;
-    switch (entry.level) {
-      case _LogLevel.success: textColor = _kSuccess;
-      case _LogLevel.warning: textColor = _kWarning;
-      case _LogLevel.error:   textColor = _kDanger;
-      default:                textColor = _kTextSecondary;
-    }
-
-    final t = entry.timestamp;
-    final ts = '${t.hour.toString().padLeft(2, '0')}:'
-        '${t.minute.toString().padLeft(2, '0')}:'
-        '${t.second.toString().padLeft(2, '0')}';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(ts,
-              style: TextStyle(
-                fontSize: 9.5,
-                fontFamily: 'monospace',
-                color: _kTextSecondary.withOpacity(0.4),
-              )),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(entry.message,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontFamily: 'monospace',
-                  color: textColor,
-                  height: 1.45,
-                )),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -680,7 +496,7 @@ class _WaterDropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
+    final cx = size.width  / 2;
     final cy = size.height / 2;
     final activeColor = isDone ? _kSuccess : _kAccent;
 
@@ -691,7 +507,7 @@ class _WaterDropPainter extends CustomPainter {
     canvas.drawOval(
       Rect.fromCenter(
           center: Offset(cx, cy + 2),
-          width: size.width * 0.78,
+          width:  size.width  * 0.78,
           height: size.height * 0.78),
       glowPaint,
     );
@@ -699,10 +515,7 @@ class _WaterDropPainter extends CustomPainter {
     // 2. Caminho da gota
     final dropPath = _buildDropPath(size);
 
-    // Fundo da gota
     canvas.drawPath(dropPath, Paint()..color = _kSurface);
-
-    // Borda brilhante
     canvas.drawPath(
       dropPath,
       Paint()
@@ -716,13 +529,11 @@ class _WaterDropPainter extends CustomPainter {
       canvas.save();
       canvas.clipPath(dropPath);
 
-      final bounds = dropPath.getBounds();
-      final waterTop = bounds.bottom - (bounds.height * progress);
-
+      final bounds       = dropPath.getBounds();
+      final waterTop     = bounds.bottom - (bounds.height * progress);
       final waveAmplitude = isDone ? 1.5 : 4.5;
-      final waterPath = Path()
-        ..moveTo(bounds.left - 10, waterTop);
 
+      final waterPath = Path()..moveTo(bounds.left - 10, waterTop);
       const steps = 80;
       for (int i = 0; i <= steps; i++) {
         final x = bounds.left + (bounds.width * i / steps);
@@ -733,10 +544,9 @@ class _WaterDropPainter extends CustomPainter {
                 (waveAmplitude * 0.45);
         waterPath.lineTo(x, y);
       }
-
       waterPath
         ..lineTo(bounds.right + 10, bounds.bottom + 10)
-        ..lineTo(bounds.left - 10, bounds.bottom + 10)
+        ..lineTo(bounds.left  - 10, bounds.bottom + 10)
         ..close();
 
       canvas.drawPath(
@@ -744,10 +554,10 @@ class _WaterDropPainter extends CustomPainter {
         Paint()
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            end:   Alignment.bottomCenter,
             colors: isDone
                 ? [_kSuccess.withOpacity(0.88), _kSuccess.withOpacity(0.55)]
-                : [_kAccent.withOpacity(0.88), _kAccentDeep.withOpacity(0.65)],
+                : [_kAccent.withOpacity(0.88),  _kAccentDeep.withOpacity(0.65)],
           ).createShader(Rect.fromLTWH(
               bounds.left, waterTop, bounds.width, bounds.bottom - waterTop)),
       );
@@ -764,19 +574,19 @@ class _WaterDropPainter extends CustomPainter {
           ..lineTo(cx - s * 0.08, cy + s * 0.55)
           ..lineTo(cx + s * 0.55, cy - s * 0.45),
         Paint()
-          ..color = Colors.white.withOpacity(checkProgress.clamp(0.0, 1.0))
-          ..style = PaintingStyle.stroke
+          ..color      = Colors.white.withOpacity(checkProgress.clamp(0.0, 1.0))
+          ..style      = PaintingStyle.stroke
           ..strokeWidth = 3.5
-          ..strokeCap = StrokeCap.round
+          ..strokeCap  = StrokeCap.round
           ..strokeJoin = StrokeJoin.round,
       );
     } else if (!isDone && progress > 0.02) {
       final pct = (progress * 100).toInt();
-      final tp = TextPainter(
+      final tp  = TextPainter(
         text: TextSpan(
           text: '$pct',
           style: TextStyle(
-            fontSize: 20,
+            fontSize:   20,
             fontWeight: FontWeight.w800,
             color: progress > 0.52
                 ? Colors.white.withOpacity(0.92)
@@ -785,16 +595,14 @@ class _WaterDropPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(
-          canvas,
-          Offset(cx - tp.width / 2, cy - tp.height / 2 + 5));
+      tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2 + 5));
     }
   }
 
   Path _buildDropPath(Size size) {
-    final w  = size.width  * 0.70;
-    final h  = size.height * 0.82;
-    final cx = size.width  / 2;
+    final w   = size.width  * 0.70;
+    final h   = size.height * 0.82;
+    final cx  = size.width  / 2;
     final top = (size.height - h) / 2 - 2.0;
 
     return Path()
@@ -804,7 +612,7 @@ class _WaterDropPainter extends CustomPainter {
         cx - w / 2,    top + h * 0.44,
         cx - w / 2,    top + h * 0.70,
       )
-      ..quadraticBezierTo(cx - w / 2, top + h, cx, top + h)
+      ..quadraticBezierTo(cx - w / 2, top + h, cx,         top + h)
       ..quadraticBezierTo(cx + w / 2, top + h, cx + w / 2, top + h * 0.70)
       ..cubicTo(
         cx + w / 2,    top + h * 0.44,
@@ -816,8 +624,8 @@ class _WaterDropPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaterDropPainter old) =>
-      old.progress != progress ||
-      old.wavePhase != wavePhase ||
-      old.isDone    != isDone    ||
+      old.progress      != progress      ||
+      old.wavePhase     != wavePhase     ||
+      old.isDone        != isDone        ||
       old.checkProgress != checkProgress;
 }
