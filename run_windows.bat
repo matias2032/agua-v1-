@@ -14,12 +14,14 @@ timeout /t 15 /nobreak
 cd "C:\dev_hibrido\agua1\frontend\vendedor_app"
 start "FLUTTER WINDOWS (PROD)" cmd /k "flutter run -d windows --dart-define=API_BASE_URL=https://agua-v1.onrender.com --dart-define=FORCE_PROD=true"
 
+
+
 :: 2b. Frontend Windows — aponta para LOCAL (descomenta para dev)
 @REM start "FLUTTER WINDOWS (LOCAL)" cmd /k "flutter run -d windows"
 
-:: 3. Frontend Web (descomenta quando necessário)
-@REM cd "C:\dev_hibrido\agua1\frontend\cliente_web"
-@REM start "FLUTTER WEB (PROD)" cmd /k "flutter run -d chrome --dart-define=API_BASE_URL=https://agua-v1.onrender.com --dart-define=FORCE_PROD=true"
+:: 3. Frontend android — aponta para PRODUÇÃO (Render)
+@REM cd "C:\dev_hibrido\agua1\frontend\vendedor_app"
+@REM start "FLUTTER ANDROID (PROD)" cmd /k "flutter run -d emulator-5554 --dart-define=API_BASE_URL=https://agua-v1.onrender.com --dart-define=FORCE_PROD=true"
 
 echo ========================================
 echo   Tudo iniciado! Verifique as janelas.
