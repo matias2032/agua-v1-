@@ -3,10 +3,10 @@ import 'dart:io';
  
 class ApiConfig {
   // ── Configuração de ambiente ──────────────────────────────────────
-  static const String _prodBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api.suaempresa.com',
-  );
+static const String _prodBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'https://agua-v1.onrender.com', // ← só isto muda
+);
   static const int _porta = int.fromEnvironment('API_PORT', defaultValue: 8080);
  
   static String? _baseUrlCache;

@@ -13,13 +13,8 @@ import java.util.Map;
 @RequestMapping("/api/public")
 public class HealthCheckController {
 
-    @GetMapping("/ping")
-    public ResponseEntity<Map<String, Object>> ping() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "UP");
-        response.put("message", "Sistema de Galões de Água Ativo");
-        response.put("timestamp", LocalDateTime.now());
-        
-        return ResponseEntity.ok(response);
-    }
+@GetMapping("/ping")
+public ResponseEntity<String> ping() {
+    return ResponseEntity.ok("OK");
+}
 }
