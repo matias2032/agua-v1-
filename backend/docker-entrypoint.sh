@@ -5,6 +5,8 @@ if [ -n "$FIREBASE_SERVICE_ACCOUNT_B64" ]; then
   echo "$FIREBASE_SERVICE_ACCOUNT_B64" | base64 -d \
     > /app/firebase-service-account.json
   echo "✅ firebase-service-account.json reconstituído"
+else
+  echo "⚠️  FIREBASE_SERVICE_ACCOUNT_B64 não definida — Firebase desactivado"
 fi
 
 exec java \
