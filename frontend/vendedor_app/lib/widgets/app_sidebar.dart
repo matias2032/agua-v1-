@@ -92,6 +92,7 @@ class _AppSidebarState extends State<AppSidebar> with SingleTickerProviderStateM
     final apelido = sessao.usuarioAtual?.apelido ?? ''; 
     final email = sessao.usuarioAtual?.email ?? '';
     final iniciais = _iniciais(nome, apelido);
+    final isAdmin = SessaoService.instance.usuarioAtual?.idPerfil == 1;
 
     return Drawer(
       width: 280,
@@ -113,13 +114,15 @@ class _AppSidebarState extends State<AppSidebar> with SingleTickerProviderStateM
                   )),
                   
                   const SizedBox(height: 16),
-                  _buildSeccaoLabel('Gestão'),
-                  // Renderiza automaticamente todos os itens a partir do índice 2
-                  ..._kNavItems.skip(2).map((item) => _NavTile(
-                    item: item,
-                    activo: _rotaActual == item.rota,
-                    onTap: () => _navegar(item.rota),
-                  )),
+              if (isAdmin) ...[
+  const SizedBox(height: 16),
+  _buildSeccaoLabel('Gestão'),
+  ..._kNavItems.skip(2).map((item) => _NavTile(
+    item: item,
+    activo: _rotaActual == item.rota,
+    onTap: () => _navegar(item.rota),
+  )),
+],
                 ],
               ),
             ),

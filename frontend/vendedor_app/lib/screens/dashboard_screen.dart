@@ -50,6 +50,8 @@ class _Metricas {
   final int totalReenchimentos;
   final Decimal receitaReenchimentos;
   final Decimal ticketMedio;
+  
+  
 
   const _Metricas({
     required this.totalPedidos,
@@ -80,6 +82,7 @@ class _DesempenhoOperador {
   final int totalPedidos;
   final Decimal totalReceita;
   final Decimal ticketMedio;
+  final bool isAdmin; // Deixe apenas a definição do campo
 
   const _DesempenhoOperador({
     required this.idUsuario,
@@ -87,9 +90,9 @@ class _DesempenhoOperador {
     required this.totalPedidos,
     required this.totalReceita,
     required this.ticketMedio,
+    required this.isAdmin,
   });
 }
-
 // ─── Tela principal ───────────────────────────────────────────────────────────
 
 class DashboardScreen extends StatefulWidget {
@@ -195,38 +198,44 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // ── Cálculo de desempenho por operador ──────────────────────────────────
 
-  List<_DesempenhoOperador> get _desempenhoOperadores {
-    final lista = _pedidosFiltrados;
-    if (lista.isEmpty) return [];
+List<_DesempenhoOperador> get _desempenhoOperadores {
+  final lista = _pedidosFiltrados;
+  if (lista.isEmpty) return [];
 
-    final Map<int, List<PedidoModel>> porUsuario = {};
-    for (final p in lista) {
-      porUsuario.putIfAbsent(p.idUsuario, () => []).add(p);
-    }
+  // 1. Verifique o status de Admin aqui
+  final usuarioLogado = SessaoService.instance.usuarioAtual;
+  final usuarioEhAdmin = usuarioLogado?.idPerfil == 1;
 
-    final operadores = porUsuario.entries.map((e) {
-      final pedidos = e.value;
-      final receita = pedidos.fold(Decimal.zero, (acc, p) => acc + p.total);
-      final ticket  = pedidos.isNotEmpty
-          ? (receita / Decimal.fromInt(pedidos.length))
-              .toDecimal(scaleOnInfinitePrecision: 2)
-          : Decimal.zero;
-
-      final primeiro = pedidos.first;
-      final nome     = _nomeOperador(primeiro);
-
-      return _DesempenhoOperador(
-        idUsuario:    e.key,
-        nome:         nome,
-        totalPedidos: pedidos.length,
-        totalReceita: receita,
-        ticketMedio:  ticket,
-      );
-    }).toList();
-
-    operadores.sort((a, b) => b.totalReceita.compareTo(a.totalReceita));
-    return operadores;
+  final Map<int, List<PedidoModel>> porUsuario = {};
+  for (final p in lista) {
+    porUsuario.putIfAbsent(p.idUsuario, () => []).add(p);
   }
+
+  final operadores = porUsuario.entries.map((e) {
+    final pedidos = e.value;
+    final receita = pedidos.fold(Decimal.zero, (acc, p) => acc + p.total);
+    final ticket = pedidos.isNotEmpty
+        ? (receita / Decimal.fromInt(pedidos.length))
+            .toDecimal(scaleOnInfinitePrecision: 2)
+        : Decimal.zero;
+
+    final primeiro = pedidos.first;
+    final nome = _nomeOperador(primeiro);
+
+    return _DesempenhoOperador(
+      idUsuario: e.key,
+      nome: nome,
+      totalPedidos: pedidos.length,
+      totalReceita: receita,
+      ticketMedio: ticket,
+      isAdmin: usuarioEhAdmin, // 2. Passe o valor calculado
+    );
+  }).toList();
+
+  operadores.sort((a, b) => b.totalReceita.compareTo(a.totalReceita));
+  return operadores;
+}
+
 
   String _nomeOperador(PedidoModel p) {
     final nome    = p.nomeUsuario;
@@ -370,6 +379,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   // ── Body ──────────────────────────────────────────────────────────────────
 
   Widget _buildBody() {
+
+    final isAdmin = SessaoService.instance.usuarioAtual?.idPerfil == 1;
     if (_carregando && _pedidosFinalizados.isEmpty) {
       return const Center(
           child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2));
@@ -409,6 +420,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: RefreshIndicator(
         color: _kAccent, backgroundColor: _kCard,
         onRefresh: _carregar,
+
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           children: [
@@ -441,10 +453,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             const SizedBox(height: 16),
 
             // ── Desempenho dos operadores ───────────────────────────────
-            _DesempenhoCard(
-              operadores: operadores,
-              receitaMax: receitaMax,
-            ),
+         if (isAdmin)
+  _DesempenhoCard(
+    operadores: operadores,
+    receitaMax: receitaMax,
+  ),
           ],
         ),
       ),
