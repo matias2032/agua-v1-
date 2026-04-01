@@ -192,6 +192,14 @@ Future<void> imprimirComprovativo({
   final sumatraPath =
       '${Directory(Platform.resolvedExecutable).parent.path}\\SumatraPDF.exe';
 
+  if (!File(sumatraPath).existsSync()) {
+    throw Exception(
+      'SumatraPDF.exe não encontrado.\n'
+      'Caminho esperado: $sumatraPath\n'
+      'Certifique-se que o ficheiro está na pasta da aplicação.',
+    );
+  }
+
   final pdf = _buildPdfDocument(
     pedido: pedido,
     tipoPagamento: tipoPagamento,
@@ -201,7 +209,6 @@ Future<void> imprimirComprovativo({
   );
   final file = await _savePdf(pdf, pedido.idPedido);
 
-  // Abre o diálogo de impressão do próprio SumatraPDF (não o do Windows)
   await Process.run(sumatraPath, [
     '-print-dialog',
     file.path,
@@ -261,43 +268,51 @@ Future<void> imprimirComprovativo({
   // ─────────────────────────────────────────────
   // Impressão silenciosa via SumatraPDF (80mm)
   // ─────────────────────────────────────────────
-  Future<void> imprimirViaSumatra({
-    required PedidoModel pedido,
-    required String tipoPagamento,
-    required String impressoraNome,
-    String? nomeCliente,
-    String? telefoneCliente,
-    PaperFormat paperFormat = PaperFormat.thermal80mm,
-  }) async {
-    if (!Platform.isWindows) {
-      throw UnsupportedError('SumatraPDF só está disponível no Windows.');
-    }
-
-    final sumatraPath =
-        '${Directory(Platform.resolvedExecutable).parent.path}\\SumatraPDF.exe';
-
-    final pdf = _buildPdfDocument(
-      pedido: pedido,
-      tipoPagamento: tipoPagamento,
-      paperFormat: paperFormat,
-      nomeCliente: nomeCliente,
-      telefoneCliente: telefoneCliente,
-    );
-    final file = await _savePdf(pdf, pedido.idPedido);
-
-    final result = await Process.run(sumatraPath, [
-      '-print-to', impressoraNome,
-      '-print-settings', 'fit',
-      '-silent',
-      file.path,
-    ]);
-
-    if (result.exitCode != 0) {
-      throw Exception(
-        'SumatraPDF erro (${result.exitCode}): ${result.stderr}',
-      );
-    }
+Future<void> imprimirViaSumatra({
+  required PedidoModel pedido,
+  required String tipoPagamento,
+  required String impressoraNome,
+  String? nomeCliente,
+  String? telefoneCliente,
+  PaperFormat paperFormat = PaperFormat.thermal80mm,
+}) async {
+  if (!Platform.isWindows) {
+    throw UnsupportedError('SumatraPDF só está disponível no Windows.');
   }
+
+  final sumatraPath =
+      '${Directory(Platform.resolvedExecutable).parent.path}\\SumatraPDF.exe';
+
+  if (!File(sumatraPath).existsSync()) {
+    throw Exception(
+      'SumatraPDF.exe não encontrado.\n'
+      'Caminho esperado: $sumatraPath\n'
+      'Certifique-se que o ficheiro está na pasta da aplicação.',
+    );
+  }
+
+  final pdf = _buildPdfDocument(
+    pedido: pedido,
+    tipoPagamento: tipoPagamento,
+    paperFormat: paperFormat,
+    nomeCliente: nomeCliente,
+    telefoneCliente: telefoneCliente,
+  );
+  final file = await _savePdf(pdf, pedido.idPedido);
+
+  final result = await Process.run(sumatraPath, [
+    '-print-to', impressoraNome,
+    '-print-settings', 'fit',
+    '-silent',
+    file.path,
+  ]);
+
+  if (result.exitCode != 0) {
+    throw Exception(
+      'SumatraPDF erro (${result.exitCode}): ${result.stderr}',
+    );
+  }
+}
 
   // ─────────────────────────────────────────────
   // Nomenclatura automática: FAT-00054-20260312-2159

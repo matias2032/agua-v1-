@@ -89,6 +89,7 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"
@@ -108,3 +109,14 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+set(SUMATRA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../assets/SumatraPDF-3.5.2-64.exe")
+if(EXISTS "${SUMATRA_SRC}")
+  install(FILES "${SUMATRA_SRC}"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    RENAME "SumatraPDF.exe"
+    COMPONENT Runtime)
+else()
+  message(WARNING "SumatraPDF.exe não encontrado em ${SUMATRA_SRC}")
+endif()
+  
