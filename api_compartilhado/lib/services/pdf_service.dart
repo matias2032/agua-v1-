@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
-import 'package:open_file_plus/open_file_plus.dart'; // <--- O correto é 'open_file_plus'
+import 'package:open_filex/open_filex.dart'; 
 import 'package:printing/printing.dart';
 import 'package:api_compartilhado/api_compartilhado.dart';
 import 'package:intl/intl.dart';
@@ -811,21 +811,26 @@ Future<void> imprimirComprovativo({
   // ─────────────────────────────────────────────
   // Abrir PDF em leitor externo
   // ─────────────────────────────────────────────
-  Future<void> abrirPdf(File file) async {
-    final result = await OpenFile.open(file.path);
-    switch (result.type) {
-      case ResultType.done:
-        return;
-      case ResultType.noAppToOpen:
-        throw Exception(
-          'Nenhuma app de leitura de PDF encontrada.\nFicheiro em: ${file.path}',
-        );
-      case ResultType.fileNotFound:
-        throw Exception('Ficheiro não encontrado: ${file.path}');
-      case ResultType.permissionDenied:
-        throw Exception('Permissão negada ao abrir o ficheiro.');
-      case ResultType.error:
-        throw Exception('Erro ao abrir o PDF: ${result.message}');
-    }
+Future<void> abrirPdf(File file) async {
+  final result = await OpenFilex.open(file.path);
+
+  switch (result.type) {
+    case ResultType.done:
+      return;
+
+    case ResultType.noAppToOpen:
+      throw Exception(
+        'Nenhuma app de leitura de PDF encontrada.\nFicheiro em: ${file.path}',
+      );
+
+    case ResultType.fileNotFound:
+      throw Exception('Ficheiro não encontrado: ${file.path}');
+
+    case ResultType.permissionDenied:
+      throw Exception('Permissão negada ao abrir o ficheiro.');
+
+    case ResultType.error:
+      throw Exception('Erro ao abrir o PDF: ${result.message}');
   }
+}
 }
